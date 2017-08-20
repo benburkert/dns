@@ -16,6 +16,48 @@ type Conn interface {
 	Send(msg *Message) error
 }
 
+// PacketConn is a packet-oriented network connection to a DNS resolver that
+// expects transmitted messages to adhere to RFC 1035 Section 4.2.1. "UDP
+// usage".
+type PacketConn struct {
+	net.Conn
+
+	rbuf, wbuf []byte
+}
+
+// Recv reads a DNS message from the underlying connection.
+func (c *PacketConn) Recv(msg *Message) error {
+	if len(c.rbuf) != 512 {
+		c.rbuf = make([]byte, 512)
+	}
+
+	n, err := c.Read(c.rbuf)
+	if err != nil {
+		return err
+	}
+
+	return msg.Unpack(c.rbuf[:n])
+}
+
+// Send writes a DNS message to the underlying connection.
+func (c *PacketConn) Send(msg *Message) error {
+	if len(c.wbuf) != 512 {
+		c.wbuf = make([]byte, 512)
+	}
+
+	var err error
+	if c.wbuf, err = msg.AppendPack(c.wbuf[:0]); err != nil {
+		return err
+	}
+
+	if len(c.wbuf) > 512 {
+		return ErrOversizedQuery
+	}
+
+	_, err = c.Write(c.wbuf)
+	return err
+}
+
 // StreamConn is a stream-oriented network connection to a DNS resolver that
 // expects transmitted messages to adhere to RFC 1035 Section 4.2.2. "TCP
 // usage".
