@@ -123,9 +123,6 @@ func TestDNSPackUnpack(t *testing.T) {
 					Class: ClassINET,
 				},
 			},
-			Answers:     []Resource{},
-			Authorities: []Resource{},
-			Additionals: []Resource{},
 		},
 		largeTestMsg(),
 	}

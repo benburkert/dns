@@ -408,6 +408,10 @@ func (p *Parser) Question() (Question, error) {
 
 // AllQuestions parses all Questions.
 func (p *Parser) AllQuestions() ([]Question, error) {
+	if (p.header.questions) == 0 {
+		return nil, nil
+	}
+
 	qs := make([]Question, 0, p.header.questions)
 	for {
 		q, err := p.Question()
@@ -464,6 +468,10 @@ func (p *Parser) Answer() (Resource, error) {
 
 // AllAnswers parses all Answer Resources.
 func (p *Parser) AllAnswers() ([]Resource, error) {
+	if p.header.answers == 0 {
+		return nil, nil
+	}
+
 	as := make([]Resource, 0, p.header.answers)
 	for {
 		a, err := p.Answer()
@@ -505,6 +513,10 @@ func (p *Parser) Authority() (Resource, error) {
 
 // AllAuthorities parses all Authority Resources.
 func (p *Parser) AllAuthorities() ([]Resource, error) {
+	if p.header.authorities == 0 {
+		return nil, nil
+	}
+
 	as := make([]Resource, 0, p.header.authorities)
 	for {
 		a, err := p.Authority()
@@ -546,6 +558,10 @@ func (p *Parser) Additional() (Resource, error) {
 
 // AllAdditionals parses all Additional Resources.
 func (p *Parser) AllAdditionals() ([]Resource, error) {
+	if p.header.additionals == 0 {
+		return nil, nil
+	}
+
 	as := make([]Resource, 0, p.header.additionals)
 	for {
 		a, err := p.Additional()
