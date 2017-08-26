@@ -22,3 +22,14 @@ type Query struct {
 	// RemoteAddr is the address of a DNS resolver.
 	RemoteAddr net.Addr
 }
+
+// OverTLSAddr indicates the remote DNS service implements DNS-over-TLS as
+// defined in RFC 7858.
+type OverTLSAddr struct {
+	net.Addr
+}
+
+// Network returns the address's network name with a "-tls" suffix.
+func (a OverTLSAddr) Network() string {
+	return a.Addr.Network() + "-tls"
+}
