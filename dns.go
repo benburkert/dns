@@ -2,6 +2,7 @@ package dns
 
 import (
 	"errors"
+	"net"
 )
 
 var (
@@ -13,3 +14,11 @@ var (
 	// unknown network.
 	ErrUnsupportedNetwork = errors.New("unsupported network")
 )
+
+// Query is a DNS request message bound for a DNS resolver.
+type Query struct {
+	*Message
+
+	// RemoteAddr is the address of a DNS resolver.
+	RemoteAddr net.Addr
+}
