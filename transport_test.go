@@ -2,12 +2,14 @@ package dns
 
 import (
 	"context"
-	"errors"
+	"crypto/tls"
 	"io"
 	"log"
 	"net"
 	"reflect"
 	"testing"
+
+	"github.com/benburkert/dns/internal/must"
 )
 
 var transportTests = []struct {
@@ -48,48 +50,94 @@ var transportTests = []struct {
 func TestTransport(t *testing.T) {
 	t.Parallel()
 
-	tport := new(Transport)
-
-	t.Run("tcp", func(t *testing.T) {
-		t.Parallel()
-
-		testTransport(t, tport, new(net.TCPAddr))
-	})
+	srv := &testServer{
+		Answers: answers,
+	}
 
 	t.Run("udp", func(t *testing.T) {
 		t.Parallel()
 
-		testTransport(t, tport, new(net.UDPAddr))
+		conn, err := net.ListenPacket("udp", ":0")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if err := srv.StartUDP(conn); err != nil {
+			t.Fatal(err)
+		}
+
+		testTransport(t, new(Transport), conn.LocalAddr())
+	})
+
+	t.Run("tcp", func(t *testing.T) {
+		t.Parallel()
+
+		ln, err := net.Listen("tcp", ":0")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if err := srv.StartTCP(ln); err != nil {
+			t.Fatal(err)
+		}
+
+		testTransport(t, new(Transport), ln.Addr())
+	})
+
+	t.Run("tcp-tls", func(t *testing.T) {
+		t.Parallel()
+
+		ca := must.CACert("ca.dev", nil)
+
+		srvConfig := &tls.Config{
+			Certificates: []tls.Certificate{
+				*must.LeafCert("dns-server.dev", ca).TLS(),
+				*ca.TLS(),
+			},
+		}
+
+		ln, err := tls.Listen("tcp", ":0", srvConfig)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if err := srv.StartTCP(ln); err != nil {
+			t.Fatal(err)
+		}
+
+		tport := &Transport{
+			TLSConfig: &tls.Config{
+				ServerName: "dns-server.dev",
+				RootCAs:    must.CertPool(ca.TLS()),
+			},
+		}
+
+		testTransport(t, tport, OverTLSAddr{ln.Addr()})
 	})
 }
 
 func testTransport(t *testing.T, tport *Transport, addr net.Addr) {
-	srv := &testServer{
-		Addr:    addr,
-		Answers: answers,
-	}
-
-	if err := srv.Start(); err != nil {
-		t.Fatal(err)
-	}
-
 	for _, test := range transportTests {
 		test := test
 
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			query := &Query{
-				Message:    test.req,
-				RemoteAddr: srv.Addr,
-			}
-
-			msg, err := tport.RoundTrip(context.Background(), query)
+			conn, err := tport.DialAddr(context.Background(), addr)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			if want, got := test.res, msg; !reflect.DeepEqual(want, got) {
+			if err := conn.Send(test.req); err != nil {
+				t.Fatal(err)
+			}
+
+			var msg Message
+			if err := conn.Recv(&msg); err != nil {
+				t.Fatal(err)
+			}
+
+			if want, got := test.res, &msg; !reflect.DeepEqual(want, got) {
 				t.Errorf("want response %+v, got %+v", want, got)
 			}
 		})
@@ -133,18 +181,44 @@ var (
 )
 
 type testServer struct {
-	Addr net.Addr
-
 	Answers map[Question]Resource
 }
 
-func (s *testServer) startUDP() error {
-	conn, err := net.ListenPacket(s.Addr.Network(), s.Addr.String())
-	if err != nil {
-		return err
-	}
-	s.Addr = conn.LocalAddr()
+func (s *testServer) StartTCP(ln net.Listener) error {
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				log.Print(err.Error())
+				return
+			}
 
+			sconn := &StreamConn{Conn: conn}
+			go func() {
+				for {
+					var msg Message
+					if err := sconn.Recv(&msg); err != nil {
+						if err != io.EOF {
+							panic(err)
+							log.Print(err.Error())
+						}
+						return
+					}
+
+					if err := sconn.Send(s.handle(&msg)); err != nil {
+						panic(err)
+						log.Print(err.Error())
+						return
+					}
+				}
+			}()
+		}
+	}()
+
+	return nil
+}
+
+func (s *testServer) StartUDP(conn net.PacketConn) error {
 	go func() {
 		defer conn.Close()
 
@@ -172,54 +246,6 @@ func (s *testServer) startUDP() error {
 				log.Print(err.Error())
 				return
 			}
-		}
-	}()
-
-	return nil
-}
-func (s *testServer) Start() error {
-	switch s.Addr.(type) {
-	case *net.TCPAddr:
-		return s.startTCP()
-	case *net.UDPAddr:
-		return s.startUDP()
-	default:
-		return errors.New("unknown network")
-	}
-}
-
-func (s *testServer) startTCP() error {
-	ln, err := net.Listen(s.Addr.Network(), s.Addr.String())
-	if err != nil {
-		return err
-	}
-	s.Addr = ln.Addr()
-
-	go func() {
-		for {
-			conn, err := ln.Accept()
-			if err != nil {
-				log.Print(err.Error())
-				return
-			}
-
-			sconn := &StreamConn{Conn: conn}
-			go func() {
-				for {
-					var msg Message
-					if err := sconn.Recv(&msg); err != nil {
-						if err != io.EOF {
-							log.Print(err.Error())
-						}
-						return
-					}
-
-					if err := sconn.Send(s.handle(&msg)); err != nil {
-						log.Print(err.Error())
-						return
-					}
-				}
-			}()
 		}
 	}()
 

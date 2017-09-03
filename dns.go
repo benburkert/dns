@@ -1,6 +1,7 @@
 package dns
 
 import (
+	"context"
 	"errors"
 	"net"
 )
@@ -14,6 +15,11 @@ var (
 	// unknown network.
 	ErrUnsupportedNetwork = errors.New("unsupported network")
 )
+
+// AddrDialer dials a net Addr.
+type AddrDialer interface {
+	DialAddr(context.Context, net.Addr) (Conn, error)
+}
 
 // Query is a DNS request message bound for a DNS resolver.
 type Query struct {
