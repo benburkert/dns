@@ -116,6 +116,30 @@ func TestTransport(t *testing.T) {
 	})
 }
 
+func TestTransportProxy(t *testing.T) {
+	t.Parallel()
+
+	ln, err := net.Listen("tcp", ":0")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tport := &Transport{
+		Proxy: func(_ context.Context, _ net.Addr) (net.Addr, error) {
+			return ln.Addr(), nil
+		},
+	}
+
+	conn, err := tport.DialAddr(context.Background(), new(net.TCPAddr))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if want, got := ln.Addr().(*net.TCPAddr).Port, conn.RemoteAddr().(*net.TCPAddr).Port; want != got {
+		t.Errorf("want dialed addr %q, got %q", want, got)
+	}
+}
+
 func testTransport(t *testing.T, tport *Transport, addr net.Addr) {
 	for _, test := range transportTests {
 		test := test

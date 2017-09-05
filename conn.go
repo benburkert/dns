@@ -70,7 +70,7 @@ type StreamConn struct {
 // Recv reads a DNS message from the underlying connection.
 func (c *StreamConn) Recv(msg *Message) error {
 	if len(c.rbuf) < 2 {
-		c.rbuf = make([]byte, 1024)
+		c.rbuf = make([]byte, 1280)
 	}
 
 	if _, err := io.ReadFull(c, c.rbuf[:2]); err != nil {

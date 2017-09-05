@@ -39,3 +39,6 @@ type OverTLSAddr struct {
 func (a OverTLSAddr) Network() string {
 	return a.Addr.Network() + "-tls"
 }
+
+// ProxyFunc modifies the address of a DNS server.
+type ProxyFunc func(context.Context, net.Addr) (net.Addr, error)
