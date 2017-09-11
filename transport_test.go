@@ -8,6 +8,7 @@ import (
 	"net"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/benburkert/dns/internal/must"
 )
@@ -27,7 +28,7 @@ var transportTests = []struct {
 		},
 
 		res: &Message{
-			Header:    Header{Response: true},
+			Response:  true,
 			Questions: []Question{questions["A"]},
 			Answers:   []Resource{answers[questions["A"]]},
 		},
@@ -40,7 +41,7 @@ var transportTests = []struct {
 		},
 
 		res: &Message{
-			Header:    Header{Response: true},
+			Response:  true,
 			Questions: []Question{questions["AAAA"]},
 			Answers:   []Resource{answers[questions["AAAA"]]},
 		},
@@ -183,23 +184,21 @@ var (
 	}
 
 	answers = map[Question]Resource{
-		questions["A"]: &AResource{
-			ResourceHeader: ResourceHeader{
-				Name:  "A.dev.",
-				Type:  TypeA,
-				Class: ClassINET,
-				TTL:   60,
+		questions["A"]: Resource{
+			Name:  "A.dev.",
+			Class: ClassINET,
+			TTL:   60 * time.Second,
+			Record: &A{
+				A: net.IPv4(127, 0, 0, 1).To4(),
 			},
-			A: [4]byte{127, 0, 0, 1},
 		},
-		questions["AAAA"]: &AAAAResource{
-			ResourceHeader: ResourceHeader{
-				Name:  "A.dev.",
-				Type:  TypeAAAA,
-				Class: ClassINET,
-				TTL:   60,
+		questions["AAAA"]: Resource{
+			Name:  "AAAA.dev.",
+			Class: ClassINET,
+			TTL:   60 * time.Second,
+			Record: &AAAA{
+				AAAA: net.ParseIP("::1"),
 			},
-			AAAA: [16]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
 		},
 	}
 )
@@ -223,7 +222,6 @@ func (s *testServer) StartTCP(ln net.Listener) error {
 					var msg Message
 					if err := sconn.Recv(&msg); err != nil {
 						if err != io.EOF {
-							panic(err)
 							log.Print(err.Error())
 						}
 						return
@@ -255,12 +253,12 @@ func (s *testServer) StartUDP(conn net.PacketConn) error {
 			}
 
 			msg := new(Message)
-			if err := msg.Unpack(buf[:n]); err != nil {
+			if _, err := msg.Unpack(buf[:n]); err != nil {
 				log.Print(err.Error())
 				return
 			}
 
-			buf, err := s.handle(msg).AppendPack(buf[:0])
+			buf, err := s.handle(msg).Pack(buf[:0], true)
 			if err != nil {
 				log.Print(err.Error())
 				return
@@ -278,10 +276,8 @@ func (s *testServer) StartUDP(conn net.PacketConn) error {
 
 func (s *testServer) handle(req *Message) *Message {
 	res := &Message{
-		Header: Header{
-			ID:       req.ID,
-			Response: true,
-		},
+		ID:        req.ID,
+		Response:  true,
 		Questions: req.Questions,
 	}
 

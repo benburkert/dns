@@ -33,27 +33,25 @@ func TestLookupHost(t *testing.T) {
 				Name:  "localhost.dev.",
 				Type:  TypeA,
 				Class: ClassINET,
-			}: &AResource{
-				ResourceHeader: ResourceHeader{
-					Name:  "localhost.dev.",
-					Type:  TypeA,
-					Class: ClassINET,
-					TTL:   60,
+			}: Resource{
+				Name:  "localhost.dev.",
+				Class: ClassINET,
+				TTL:   60,
+				Record: &A{
+					A: net.IPv4(127, 0, 0, 1),
 				},
-				A: [4]byte{127, 0, 0, 1},
 			},
 			Question{
 				Name:  "localhost.dev.",
 				Type:  TypeAAAA,
 				Class: ClassINET,
-			}: &AAAAResource{
-				ResourceHeader: ResourceHeader{
-					Name:  "localhost.dev.",
-					Type:  TypeAAAA,
-					Class: ClassINET,
-					TTL:   60,
+			}: Resource{
+				Name:  "localhost.dev.",
+				Class: ClassINET,
+				TTL:   60,
+				Record: &AAAA{
+					AAAA: net.ParseIP("::1"),
 				},
-				AAAA: [16]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
 			},
 		},
 	}

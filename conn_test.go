@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"golang.org/x/sync/errgroup"
 )
@@ -32,14 +33,13 @@ func TestPacketConnRoundTrip(t *testing.T) {
 			},
 			res: &Message{
 				Answers: []Resource{
-					&AResource{
-						ResourceHeader: ResourceHeader{
-							Name:  "example.com.",
-							Type:  TypeA,
-							Class: ClassINET,
-							TTL:   60,
+					{
+						Name:  "example.com.",
+						Class: ClassINET,
+						TTL:   60 * time.Second,
+						Record: &A{
+							A: net.IPv4(127, 0, 0, 1).To4(),
 						},
-						A: [4]byte{127, 0, 0, 1},
 					},
 				},
 				Questions: []Question{
@@ -117,14 +117,13 @@ func TestStreamConnRoundTrip(t *testing.T) {
 			},
 			res: &Message{
 				Answers: []Resource{
-					&AResource{
-						ResourceHeader: ResourceHeader{
-							Name:  "example.com.",
-							Type:  TypeA,
-							Class: ClassINET,
-							TTL:   60,
+					{
+						Name:  "example.com.",
+						Class: ClassINET,
+						TTL:   60 * time.Second,
+						Record: &A{
+							A: net.IPv4(127, 0, 0, 1).To4(),
 						},
-						A: [4]byte{127, 0, 0, 1},
 					},
 				},
 				Questions: []Question{
@@ -183,8 +182,8 @@ func testRoundTrip(client, server Conn, req, res *Message) error {
 			return err
 		}
 
-		if want, got := res, msg; !reflect.DeepEqual(*want, *got) {
-			return fmt.Errorf("want response message %#v, got %#v", want, got)
+		if want, got := res, msg; !reflect.DeepEqual(want, got) {
+			return fmt.Errorf("want response message %+v, got %+v", want, got)
 		}
 
 		return nil
@@ -198,7 +197,7 @@ func testRoundTrip(client, server Conn, req, res *Message) error {
 			return err
 		}
 
-		if want, got := req, msg; !reflect.DeepEqual(*want, *got) {
+		if want, got := req, msg; !reflect.DeepEqual(want, got) {
 			return fmt.Errorf("want request message %+v, got %+v", want, got)
 		}
 

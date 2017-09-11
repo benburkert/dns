@@ -15,7 +15,7 @@ func (s packetSession) Read(b []byte) (int, error) {
 		return 0, err
 	}
 
-	buf, err := msg.AppendPack(b[:0:len(b)])
+	buf, err := msg.Pack(b[:0:len(b)], true)
 	if err != nil {
 		return len(buf), err
 	}
@@ -32,7 +32,7 @@ func (s packetSession) ReadFrom(b []byte) (int, net.Addr, error) {
 
 func (s packetSession) Write(b []byte) (int, error) {
 	msg := new(Message)
-	if err := msg.Unpack(b); err != nil {
+	if _, err := msg.Unpack(b); err != nil {
 		return 0, err
 	}
 
@@ -66,7 +66,7 @@ func (s streamSession) Read(b []byte) (int, error) {
 		return 0, err
 	}
 
-	if s.rbuf, err = msg.AppendPack(s.rbuf[:0]); err != nil {
+	if s.rbuf, err = msg.Pack(s.rbuf[:0], true); err != nil {
 		return 0, err
 	}
 
@@ -107,7 +107,7 @@ func (s streamSession) Write(b []byte) (int, error) {
 	}
 
 	msg := new(Message)
-	if err := msg.Unpack(buf); err != nil {
+	if _, err := msg.Unpack(buf); err != nil {
 		return 0, err
 	}
 

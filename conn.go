@@ -36,7 +36,8 @@ func (c *PacketConn) Recv(msg *Message) error {
 		return err
 	}
 
-	return msg.Unpack(c.rbuf[:n])
+	_, err = msg.Unpack(c.rbuf[:n])
+	return err
 }
 
 // Send writes a DNS message to the underlying connection.
@@ -46,7 +47,7 @@ func (c *PacketConn) Send(msg *Message) error {
 	}
 
 	var err error
-	if c.wbuf, err = msg.AppendPack(c.wbuf[:0]); err != nil {
+	if c.wbuf, err = msg.Pack(c.wbuf[:0], true); err != nil {
 		return err
 	}
 
@@ -82,15 +83,11 @@ func (c *StreamConn) Recv(msg *Message) error {
 		c.rbuf = make([]byte, l)
 	}
 
-	if len(c.rbuf) < l {
-		c.rbuf = make([]byte, l)
-	}
-
 	if _, err := io.ReadFull(c, c.rbuf[:l]); err != nil {
 		return err
 	}
 
-	err := msg.Unpack(c.rbuf[:l])
+	_, err := msg.Unpack(c.rbuf[:l])
 	return err
 }
 
@@ -100,7 +97,7 @@ func (c *StreamConn) Send(msg *Message) error {
 		c.wbuf = make([]byte, 1024)
 	}
 
-	b, err := msg.AppendPack(c.wbuf[2:2])
+	b, err := msg.Pack(c.wbuf[2:2], true)
 	if err != nil {
 		return err
 	}
