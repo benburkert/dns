@@ -27,7 +27,7 @@ func TestLookupHost(t *testing.T) {
 		},
 	}
 
-	srv := &testServer{
+	srv := mustServer(&answerHandler{
 		Answers: map[Question]Resource{
 			Question{
 				Name:  "localhost.dev.",
@@ -54,21 +54,17 @@ func TestLookupHost(t *testing.T) {
 				},
 			},
 		},
-	}
+	})
 
-	conn, err := net.ListenPacket("udp", ":0")
+	addr, err := net.ResolveUDPAddr("udp", srv.Addr)
 	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := srv.StartUDP(conn); err != nil {
 		t.Fatal(err)
 	}
 
 	client := &Client{
 		Transport: &Transport{
 			Proxy: func(_ context.Context, _ net.Addr) (net.Addr, error) {
-				return conn.LocalAddr(), nil
+				return addr, nil
 			},
 		},
 	}

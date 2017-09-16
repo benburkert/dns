@@ -63,7 +63,7 @@ func TestPacketConnRoundTrip(t *testing.T) {
 					},
 				},
 			},
-			err: ErrOversizedQuery,
+			err: ErrOversizedMessage,
 		},
 	}
 

@@ -7,9 +7,9 @@ import (
 )
 
 var (
-	// ErrOversizedQuery is an error returned when attempting to send a query that
-	// is longer than the maximum allowed number of bytes.
-	ErrOversizedQuery = errors.New("oversized query")
+	// ErrOversizedMessage is an error returned when attempting to send a
+	// message that is longer than the maximum allowed number of bytes.
+	ErrOversizedMessage = errors.New("oversized message")
 
 	// ErrUnsupportedNetwork is returned when DialAddr is called with an
 	// unknown network.

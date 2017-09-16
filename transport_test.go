@@ -3,7 +3,6 @@ package dns
 import (
 	"context"
 	"crypto/tls"
-	"io"
 	"log"
 	"net"
 	"reflect"
@@ -51,38 +50,28 @@ var transportTests = []struct {
 func TestTransport(t *testing.T) {
 	t.Parallel()
 
-	srv := &testServer{
-		Answers: answers,
-	}
+	srv := mustServer(&answerHandler{answers})
 
 	t.Run("udp", func(t *testing.T) {
 		t.Parallel()
 
-		conn, err := net.ListenPacket("udp", ":0")
+		addr, err := net.ResolveUDPAddr("udp", srv.Addr)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		if err := srv.StartUDP(conn); err != nil {
-			t.Fatal(err)
-		}
-
-		testTransport(t, new(Transport), conn.LocalAddr())
+		testTransport(t, new(Transport), addr)
 	})
 
 	t.Run("tcp", func(t *testing.T) {
 		t.Parallel()
 
-		ln, err := net.Listen("tcp", ":0")
+		addr, err := net.ResolveTCPAddr("tcp", srv.Addr)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		if err := srv.StartTCP(ln); err != nil {
-			t.Fatal(err)
-		}
-
-		testTransport(t, new(Transport), ln.Addr())
+		testTransport(t, new(Transport), addr)
 	})
 
 	t.Run("tcp-tls", func(t *testing.T) {
@@ -90,21 +79,19 @@ func TestTransport(t *testing.T) {
 
 		ca := must.CACert("ca.dev", nil)
 
-		srvConfig := &tls.Config{
+		srv.TLSConfig = &tls.Config{
 			Certificates: []tls.Certificate{
 				*must.LeafCert("dns-server.dev", ca).TLS(),
 				*ca.TLS(),
 			},
 		}
 
-		ln, err := tls.Listen("tcp", ":0", srvConfig)
+		ln, err := net.Listen("tcp", ":0")
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		if err := srv.StartTCP(ln); err != nil {
-			t.Fatal(err)
-		}
+		go srv.ServeTLS(context.Background(), ln)
 
 		tport := &Transport{
 			TLSConfig: &tls.Config{
@@ -203,89 +190,24 @@ var (
 	}
 )
 
-type testServer struct {
+type answerHandler struct {
 	Answers map[Question]Resource
 }
 
-func (s *testServer) StartTCP(ln net.Listener) error {
-	go func() {
-		for {
-			conn, err := ln.Accept()
-			if err != nil {
-				log.Print(err.Error())
-				return
-			}
-
-			sconn := &StreamConn{Conn: conn}
-			go func() {
-				for {
-					var msg Message
-					if err := sconn.Recv(&msg); err != nil {
-						if err != io.EOF {
-							log.Print(err.Error())
-						}
-						return
-					}
-
-					if err := sconn.Send(s.handle(&msg)); err != nil {
-						panic(err)
-						log.Print(err.Error())
-						return
-					}
-				}
-			}()
-		}
-	}()
-
-	return nil
-}
-
-func (s *testServer) StartUDP(conn net.PacketConn) error {
-	go func() {
-		defer conn.Close()
-
-		buf := make([]byte, 512)
-		for {
-			n, addr, err := conn.ReadFrom(buf[:512])
-			if err != nil {
-				log.Print(err.Error())
-				return
-			}
-
-			msg := new(Message)
-			if _, err := msg.Unpack(buf[:n]); err != nil {
-				log.Print(err.Error())
-				return
-			}
-
-			buf, err := s.handle(msg).Pack(buf[:0], true)
-			if err != nil {
-				log.Print(err.Error())
-				return
-			}
-
-			if _, err := conn.WriteTo(buf, addr); err != nil {
-				log.Print(err.Error())
-				return
-			}
-		}
-	}()
-
-	return nil
-}
-
-func (s *testServer) handle(req *Message) *Message {
-	res := &Message{
-		ID:        req.ID,
+func (a *answerHandler) ServeDNS(ctx context.Context, w MessageWriter, r *Query) {
+	msg := &Message{
+		ID:        r.ID,
 		Response:  true,
-		Questions: req.Questions,
+		Questions: r.Questions,
 	}
 
-	for _, q := range req.Questions {
-		if answer, ok := s.Answers[q]; ok {
-			res.Answers = append(res.Answers, answer)
+	for _, q := range r.Questions {
+		if answer, ok := a.Answers[q]; ok {
+			msg.Answers = append(msg.Answers, answer)
 		}
 	}
 
-	return res
+	if err := w.Send(msg); err != nil {
+		log.Println(err)
+	}
 }

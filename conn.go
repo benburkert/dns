@@ -52,7 +52,7 @@ func (c *PacketConn) Send(msg *Message) error {
 	}
 
 	if len(c.wbuf) > 512 {
-		return ErrOversizedQuery
+		return ErrOversizedMessage
 	}
 
 	_, err = c.Write(c.wbuf)
