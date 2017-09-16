@@ -94,7 +94,7 @@ func TestNamePackUnpack(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			raw, err := compressor(nil).Pack(nil, test.name)
+			raw, err := compressor{}.Pack(nil, test.name)
 			if err != nil {
 				if want, got := test.err, err; want != got {
 					t.Errorf("want err %q, got %q", want, got)
@@ -132,6 +132,7 @@ func TestMessagePackUnpack(t *testing.T) {
 
 		msg      Message
 		compress bool
+		buf      []byte
 
 		raw []byte
 	}{
@@ -179,7 +180,7 @@ func TestMessagePackUnpack(t *testing.T) {
 						Name:   "txt.example.com.",
 						Class:  ClassINET,
 						TTL:    60 * time.Second,
-						Record: &TXT{"abcd"},
+						Record: &TXT{[]string{"multi", "segment txt", "record"}},
 					},
 				},
 			},
@@ -206,9 +207,397 @@ func TestMessagePackUnpack(t *testing.T) {
 				0x00,
 				0x00, 0x10, 0x00, 0x01, // TYPE=TXT,CLASS=IN
 				0x00, 0x00, 0x00, 0x3C, // TTL=60
-				0x00, 0x05, // RDLENGTH=5
+				0x00, 0x19, // RDLENGTH=25
 
-				0x04, 'a', 'b', 'c', 'd',
+				0x05, 'm', 'u', 'l', 't', 'i',
+				0x0B, 's', 'e', 'g', 'm', 'e', 'n', 't', ' ', 't', 'x', 't',
+				0x06, 'r', 'e', 'c', 'o', 'r', 'd',
+			},
+		},
+		{
+			name: ".	60	IN	A",
+
+			msg: Message{
+				ID:       0x100,
+				Response: true,
+				Questions: []Question{
+					{
+						Name:  ".",
+						Type:  TypeA,
+						Class: ClassINET,
+					},
+				},
+				Answers: []Resource{
+					{
+						Name:  ".",
+						Class: ClassINET,
+						TTL:   60 * time.Second,
+						Record: &A{
+							A: net.IPv4(127, 0, 0, 1).To4(),
+						},
+					},
+				},
+			},
+
+			raw: []byte{
+				0x01, 0x00, // ID=0x0100
+				0x80, 0x00, // RD=1
+				0x00, 0x01, // QDCOUNT=1
+				0x00, 0x01, // ANCOUNT=1
+				0x00, 0x00, // NSCOUNT=0
+				0x00, 0x00, // ARCOUNT=0
+
+				0x00, 0x00, 0x01, 0x00, 0x01, // .	IN	A
+
+				// .	60	IN	127.0.0.1
+				0x00,
+				0x00, 0x01, 0x00, 0x01, // TYPE=A,CLASS=IN
+				0x00, 0x00, 0x00, 0x3C, // TTL=60
+				0x00, 0x04,
+
+				0x7F, 0x00, 0x00, 0x01, // 127.0.0.1
+			},
+		},
+		{
+			name: ".	60	IN	AAAA",
+
+			msg: Message{
+				ID:       0x101,
+				Response: true,
+				Questions: []Question{
+					{
+						Name:  ".",
+						Type:  TypeAAAA,
+						Class: ClassINET,
+					},
+				},
+				Answers: []Resource{
+					{
+						Name:  ".",
+						Class: ClassINET,
+						TTL:   60 * time.Second,
+						Record: &AAAA{
+							AAAA: net.ParseIP("::1"),
+						},
+					},
+				},
+			},
+
+			raw: []byte{
+				0x01, 0x01, // ID=0x0101
+				0x80, 0x00, // RD=1
+				0x00, 0x01, // QDCOUNT=1
+				0x00, 0x01, // ANCOUNT=1
+				0x00, 0x00, // NSCOUNT=0
+				0x00, 0x00, // ARCOUNT=0
+
+				0x00, 0x00, 0x1C, 0x00, 0x01, // .	IN	AAAA
+
+				// .	60	IN	::1
+				0x00,
+				0x00, 0x1C, 0x00, 0x01, // TYPE=AAAA,CLASS=IN
+				0x00, 0x00, 0x00, 0x3C, // TTL=60
+				0x00, 0x10,
+
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, // ::1
+			},
+		},
+		{
+			name: ".	60	IN	CNAME",
+
+			msg: Message{
+				ID:       0x102,
+				Response: true,
+				Questions: []Question{
+					{
+						Name:  ".",
+						Type:  TypeCNAME,
+						Class: ClassINET,
+					},
+				},
+				Answers: []Resource{
+					{
+						Name:  ".",
+						Class: ClassINET,
+						TTL:   60 * time.Second,
+						Record: &CNAME{
+							CNAME: "tld.",
+						},
+					},
+				},
+			},
+
+			raw: []byte{
+				0x01, 0x02, // ID=0x0102
+				0x80, 0x00, // RD=1
+				0x00, 0x01, // QDCOUNT=1
+				0x00, 0x01, // ANCOUNT=1
+				0x00, 0x00, // NSCOUNT=0
+				0x00, 0x00, // ARCOUNT=0
+
+				0x00, 0x00, 0x05, 0x00, 0x01, // .	IN	CNAME
+
+				// .	60	IN	"tld."
+				0x00,
+				0x00, 0x05, 0x00, 0x01, // TYPE=CNAME,CLASS=IN
+				0x00, 0x00, 0x00, 0x3C, // TTL=60
+				0x00, 0x05,
+
+				0x03, 't', 'l', 'd',
+				0x00,
+			},
+		},
+		{
+			name: ".	60	IN	SOA",
+
+			msg: Message{
+				ID:       0x103,
+				Response: true,
+				Questions: []Question{
+					{
+						Name:  ".",
+						Type:  TypeA,
+						Class: ClassINET,
+					},
+				},
+				Authorities: []Resource{
+					{
+						Name:  ".",
+						Class: ClassINET,
+						TTL:   60 * time.Second,
+						Record: &SOA{
+							NS:      "ns.",
+							MBox:    "mx.",
+							Serial:  1234,
+							Refresh: 24 * time.Hour,
+							Retry:   2 * time.Hour,
+							Expire:  3 * time.Minute,
+							MinTTL:  4 * time.Second,
+						},
+					},
+				},
+			},
+
+			raw: []byte{
+				0x01, 0x03, // ID=0x0103
+				0x80, 0x00, // RD=1
+				0x00, 0x01, // QDCOUNT=1
+				0x00, 0x00, // ANCOUNT=0
+				0x00, 0x01, // NSCOUNT=1
+				0x00, 0x00, // ARCOUNT=0
+
+				0x00, 0x00, 0x01, 0x00, 0x01, // .	IN	A
+
+				// .	60	IN	ns.	mx.	1234	86400	7200	180	4
+				0x00,
+				0x00, 0x06, 0x00, 0x01, // TYPE=SOA,CLASS=IN
+				0x00, 0x00, 0x00, 0x3C, // TTL=60
+				0x00, 0x1C,
+
+				0x02, 'n', 's',
+				0x00,
+				0x02, 'm', 'x',
+				0x00,
+				0x00, 0x00, 0x04, 0xD2, // SERIAL=1234
+				0x00, 0x01, 0x51, 0x80, // REFRESH=86400
+				0x00, 0x00, 0x1C, 0x20, // RETRY=720
+				0x00, 0x00, 0x00, 0xB4, // EXPIRE=180
+				0x00, 0x00, 0x00, 0x04, // MINIMUM=4
+			},
+		},
+		{
+			name: "1.0.0.127.in-addr.arpa.	60	IN	PTR",
+
+			msg: Message{
+				ID:       0x104,
+				Response: true,
+				Questions: []Question{
+					{
+						Name:  "1.0.0.127.in-addr.arpa.",
+						Type:  TypePTR,
+						Class: ClassINET,
+					},
+				},
+				Answers: []Resource{
+					{
+						Name:  "1.0.0.127.in-addr.arpa.",
+						Class: ClassINET,
+						TTL:   60 * time.Second,
+						Record: &PTR{
+							PTR: "localhost.",
+						},
+					},
+				},
+			},
+
+			raw: []byte{
+				0x01, 0x04, // ID=0x0104
+				0x80, 0x00, // RD=1
+				0x00, 0x01, // QDCOUNT=1
+				0x00, 0x01, // ANCOUNT=1
+				0x00, 0x00, // NSCOUNT=0
+				0x00, 0x00, // ARCOUNT=0
+
+				0x01, '1',
+				0x01, '0',
+				0x01, '0',
+				0x03, '1', '2', '7',
+				0x07, 'i', 'n', '-', 'a', 'd', 'd', 'r',
+				0x04, 'a', 'r', 'p', 'a',
+				0x00,
+
+				0x00, 0x0C, 0x00, 0x01, // TYPE=PTR,CLASS=IN
+
+				// 1.0.0.127.in-addr.arpa.	60	IN	localhost.
+
+				0x01, '1',
+				0x01, '0',
+				0x01, '0',
+				0x03, '1', '2', '7',
+				0x07, 'i', 'n', '-', 'a', 'd', 'd', 'r',
+				0x04, 'a', 'r', 'p', 'a',
+				0x00,
+				0x00, 0x0C, 0x00, 0x01, // TYPE=PTR,CLASS=IN
+				0x00, 0x00, 0x00, 0x3C, // TTL=60
+				0x00, 0x0B,
+
+				0x09, 'l', 'o', 'c', 'a', 'l', 'h', 'o', 's', 't',
+				0x00,
+			},
+		},
+		{
+			name: ".	60	IN	MX",
+
+			msg: Message{
+				ID:       0x105,
+				Response: true,
+				Questions: []Question{
+					{
+						Name:  ".",
+						Type:  TypeMX,
+						Class: ClassINET,
+					},
+				},
+				Answers: []Resource{
+					{
+						Name:  ".",
+						Class: ClassINET,
+						TTL:   60 * time.Second,
+						Record: &MX{
+							Pref: 101,
+							MX:   "mx.",
+						},
+					},
+				},
+			},
+
+			raw: []byte{
+				0x01, 0x05, // ID=0x0105
+				0x80, 0x00, // RD=1
+				0x00, 0x01, // QDCOUNT=1
+				0x00, 0x01, // ANCOUNT=1
+				0x00, 0x00, // NSCOUNT=0
+				0x00, 0x00, // ARCOUNT=0
+
+				0x00, 0x00, 0x0F, 0x00, 0x01, // .	IN	MX
+
+				0x00, 0x00, 0x0F, 0x00, 0x01, // TYPE=MX,CLASS=IN
+				0x00, 0x00, 0x00, 0x3C, // TTL=60
+				0x00, 0x06,
+
+				0x00, 0x65,
+				0x02, 'm', 'x',
+				0x00,
+			},
+		},
+		{
+			name: ".	60	IN	NS",
+
+			msg: Message{
+				ID:       0x106,
+				Response: true,
+				Questions: []Question{
+					{
+						Name:  ".",
+						Type:  TypeNS,
+						Class: ClassINET,
+					},
+				},
+				Answers: []Resource{
+					{
+						Name:  ".",
+						Class: ClassINET,
+						TTL:   60 * time.Second,
+						Record: &NS{
+							NS: "ns.",
+						},
+					},
+				},
+			},
+
+			raw: []byte{
+				0x01, 0x06, // ID=0x0106
+				0x80, 0x00, // RD=1
+				0x00, 0x01, // QDCOUNT=1
+				0x00, 0x01, // ANCOUNT=1
+				0x00, 0x00, // NSCOUNT=0
+				0x00, 0x00, // ARCOUNT=0
+
+				0x00, 0x00, 0x02, 0x00, 0x01, // .	IN	NS
+
+				0x00, 0x00, 0x02, 0x00, 0x01, // TYPE=NS,CLASS=IN
+				0x00, 0x00, 0x00, 0x3C, // TTL=60
+				0x00, 0x04,
+
+				0x02, 'n', 's',
+				0x00,
+			},
+		},
+		{
+			name: ".	60	IN	SRV",
+
+			msg: Message{
+				ID:       0x107,
+				Response: true,
+				Questions: []Question{
+					{
+						Name:  ".",
+						Type:  TypeSRV,
+						Class: ClassINET,
+					},
+				},
+				Answers: []Resource{
+					{
+						Name:  ".",
+						Class: ClassINET,
+						TTL:   60 * time.Second,
+						Record: &SRV{
+							Priority: 0x01,
+							Weight:   0x10,
+							Port:     0x11,
+							Target:   "srv.",
+						},
+					},
+				},
+			},
+
+			raw: []byte{
+				0x01, 0x07, // ID=0x0107
+				0x80, 0x00, // RD=1
+				0x00, 0x01, // QDCOUNT=1
+				0x00, 0x01, // ANCOUNT=1
+				0x00, 0x00, // NSCOUNT=0
+				0x00, 0x00, // ARCOUNT=0
+
+				0x00, 0x00, 0x21, 0x00, 0x01, // .	IN	SRV
+
+				0x00, 0x00, 0x21, 0x00, 0x01, // TYPE=SRV,CLASS=IN
+				0x00, 0x00, 0x00, 0x3C, // TTL=60
+				0x00, 0x0B,
+
+				0x00, 0x01, 0x00, 0x10, 0x00, 0x11,
+				0x03, 's', 'r', 'v',
+				0x00,
 			},
 		},
 		{
@@ -235,6 +624,7 @@ func TestMessagePackUnpack(t *testing.T) {
 				},
 			},
 			compress: true,
+			buf:      make([]byte, 2),
 
 			raw: []byte{
 				0x00, 0x00, // ID=0x0001
@@ -267,17 +657,17 @@ func TestMessagePackUnpack(t *testing.T) {
 		t.Run(string(test.name), func(t *testing.T) {
 			t.Parallel()
 
-			raw, err := test.msg.Pack(nil, test.compress)
+			raw, err := test.msg.Pack(test.buf, test.compress)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			if want, got := test.raw, raw; !bytes.Equal(want, got) {
+			if want, got := append(test.buf, test.raw...), raw; !bytes.Equal(want, got) {
 				t.Errorf("want raw message %+v, got %+v", want, got)
 			}
 
 			msg := new(Message)
-			buf, err := msg.Unpack(raw)
+			buf, err := msg.Unpack(raw[len(test.buf):])
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -658,14 +1048,14 @@ func largeTestMsg() Message {
 				Name:  name,
 				Class: ClassINET,
 				Record: &TXT{
-					TXT: "So Long, and Thanks for All the Fish",
+					TXT: []string{"So Long, and Thanks for All the Fish"},
 				},
 			},
 			{
 				Name:  name,
 				Class: ClassINET,
 				Record: &TXT{
-					TXT: "Hamster Huey and the Gooey Kablooie",
+					TXT: []string{"Hamster Huey and the Gooey Kablooie"},
 				},
 			},
 		},

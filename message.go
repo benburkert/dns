@@ -129,7 +129,7 @@ func (m *Message) Pack(b []byte, compress bool) ([]byte, error) {
 
 	var com Compressor
 	if compress {
-		com = make(compressor)
+		com = compressor{tbl: make(map[string]int), offset: len(b)}
 	}
 
 	var err error
@@ -319,7 +319,7 @@ type Question struct {
 // Pack encodes q as a byte slice. If b is not nil, m is appended into b.
 func (q Question) Pack(b []byte, com Compressor) ([]byte, error) {
 	if com == nil {
-		com = compressor(nil)
+		com = compressor{}
 	}
 
 	var err error
@@ -366,7 +366,7 @@ type Resource struct {
 // Pack encodes r onto b.
 func (r Resource) Pack(b []byte, com Compressor) ([]byte, error) {
 	if com == nil {
-		com = compressor(nil)
+		com = compressor{}
 	}
 
 	var err error
@@ -719,7 +719,7 @@ func (n *NS) Unpack(b []byte, dec Decompressor) ([]byte, error) {
 
 // TXT is a DNS TXT record.
 type TXT struct {
-	TXT string
+	TXT []string
 }
 
 // Type returns the RR type identifier.
@@ -727,44 +727,40 @@ func (TXT) Type() Type { return TypeTXT }
 
 // Length returns the encoded RDATA size.
 func (t TXT) Length(_ Compressor) int {
-	return len(t.TXT) + 1
+	var n int
+	for _, s := range t.TXT {
+		n += 1 + len(s)
+	}
+	return n
 }
 
 // Pack encodes t as RDATA.
 func (t TXT) Pack(b []byte, _ Compressor) ([]byte, error) {
-	if len(t.TXT) > 255 {
-		return nil, errSegTooLong
-	}
+	for _, s := range t.TXT {
+		if len(s) > 255 {
+			return nil, errSegTooLong
+		}
 
-	b = append(b, byte(len(t.TXT)))
-	return append(b, t.TXT...), nil
+		b = append(append(b, byte(len(s))), []byte(s)...)
+	}
+	return b, nil
 }
 
 // Unpack decodes t from RDATA in b.
 func (t *TXT) Unpack(b []byte, _ Decompressor) ([]byte, error) {
-	var err error
-	if t.TXT, err = t.unpack(b); err != nil {
-		return nil, err
-	}
-	return nil, nil
-}
-
-func (t *TXT) unpack(b []byte) (string, error) {
-	var txt string
-
+	var txts []string
 	for len(b) > 0 {
 		txtlen := int(b[0])
-		b = b[1:]
-
-		if len(b) < txtlen {
-			return "", errResourceLen
+		if len(b) < txtlen+1 {
+			return nil, errResourceLen
 		}
 
-		txt += string(b[:txtlen])
-		b = b[txtlen:]
+		txts = append(txts, string(b[1:1+txtlen]))
+		b = b[1+txtlen:]
 	}
 
-	return txt, nil
+	t.TXT = txts
+	return nil, nil
 }
 
 // SRV is a DNS SRV record.
@@ -780,7 +776,7 @@ func (SRV) Type() Type { return TypeSRV }
 
 // Length returns the encoded RDATA size.
 func (s SRV) Length(_ Compressor) int {
-	return 6 + compressor(nil).Length(s.Target)
+	return 6 + compressor{}.Length(s.Target)
 }
 
 // Pack encodes s as RDATA.
@@ -806,7 +802,7 @@ func (s SRV) Pack(b []byte, _ Compressor) ([]byte, error) {
 	nbo.PutUint16(buf[2:4], weight)
 	nbo.PutUint16(buf[4:], port)
 
-	return compressor(nil).Pack(append(b, buf[:]...), s.Target)
+	return compressor{}.Pack(append(b, buf[:]...), s.Target)
 }
 
 // Unpack decodes s from RDATA in b.

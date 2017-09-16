@@ -15,11 +15,14 @@ type Decompressor interface {
 	Unpack([]byte) (string, []byte, error)
 }
 
-type compressor map[string]int
+type compressor struct {
+	tbl    map[string]int
+	offset int
+}
 
 func (c compressor) Length(names ...string) int {
 	var visited map[string]struct{}
-	if c != nil {
+	if c.tbl != nil {
 		visited = make(map[string]struct{})
 	}
 
@@ -35,8 +38,8 @@ func (c compressor) length(name string, visited map[string]struct{}) int {
 		return 1
 	}
 
-	if c != nil {
-		if _, ok := c[name]; ok {
+	if c.tbl != nil {
+		if _, ok := c.tbl[name]; ok {
 			return 2
 		}
 		if _, ok := visited[name]; ok {
@@ -55,8 +58,8 @@ func (c compressor) Pack(b []byte, fqdn string) ([]byte, error) {
 		return append(b, 0x00), nil
 	}
 
-	if c != nil {
-		if idx, ok := c[fqdn]; ok {
+	if c.tbl != nil {
+		if idx, ok := c.tbl[fqdn]; ok {
 			ptr, err := pointerTo(idx)
 			if err != nil {
 				return nil, err
@@ -74,12 +77,12 @@ func (c compressor) Pack(b []byte, fqdn string) ([]byte, error) {
 		return nil, errSegTooLong
 	}
 
-	if c != nil {
-		idx := len(b)
+	if c.tbl != nil {
+		idx := len(b) - c.offset
 		if int(uint16(idx)) != idx {
 			return nil, errInvalidPtr
 		}
-		c[fqdn] = idx
+		c.tbl[fqdn] = idx
 	}
 
 	b = append(b, byte(pvt))

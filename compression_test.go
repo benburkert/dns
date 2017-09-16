@@ -11,6 +11,7 @@ func TestCompressor(t *testing.T) {
 
 		fqdn  string
 		state map[string]int
+		buf   []byte
 
 		raw []byte
 		err error
@@ -38,6 +39,7 @@ func TestCompressor(t *testing.T) {
 
 			fqdn:  "example.com.",
 			state: map[string]int{"com.": 5},
+			buf:   make([]byte, 2),
 
 			raw: []byte{
 				0x07, 'e', 'x', 'a', 'm', 'p', 'l', 'e',
@@ -54,13 +56,13 @@ func TestCompressor(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			com := compressor(test.state)
+			com := compressor{test.state, 0}
 
 			if want, got := len(test.raw), com.Length(test.fqdn); want != got {
 				t.Fatalf("want compressed length %d, got %d", want, got)
 			}
 
-			raw, err := com.Pack(nil, test.fqdn)
+			raw, err := com.Pack(test.buf, test.fqdn)
 			if err != nil {
 				if want, got := test.err, err; want != got {
 					t.Errorf("want err %q, got %q", want, got)
@@ -68,7 +70,7 @@ func TestCompressor(t *testing.T) {
 				return
 			}
 
-			if want, got := test.raw, raw; !bytes.Equal(want, got) {
+			if want, got := append(test.buf, test.raw...), raw; !bytes.Equal(want, got) {
 				t.Errorf("want compressed name %x, got %x", want, got)
 			}
 		})
