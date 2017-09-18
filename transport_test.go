@@ -23,10 +23,12 @@ var transportTests = []struct {
 		name: "single-A-match",
 
 		req: &Message{
+			ID:        1,
 			Questions: []Question{questions["A"]},
 		},
 
 		res: &Message{
+			ID:        1,
 			Response:  true,
 			Questions: []Question{questions["A"]},
 			Answers:   []Resource{answers[questions["A"]]},
@@ -36,10 +38,12 @@ var transportTests = []struct {
 		name: "single-AAAA-match",
 
 		req: &Message{
+			ID:        2,
 			Questions: []Question{questions["AAAA"]},
 		},
 
 		res: &Message{
+			ID:        2,
 			Response:  true,
 			Questions: []Question{questions["AAAA"]},
 			Answers:   []Resource{answers[questions["AAAA"]]},

@@ -148,7 +148,8 @@ func (s *Server) ServePacket(ctx context.Context, conn net.PacketConn) error {
 
 // Serve accepts incoming connections on the Listener ln, creating a new
 // service goroutine for each. The service goroutines read TCP encoded queries
-// over a TLS channel and then call s.Handler to reply to them.
+// over a TLS channel and then call s.Handler to reply to them, in another
+// service goroutine.
 //
 // See RFC 7858, section 3.3 for transport encoding of messages.
 //
@@ -216,8 +217,7 @@ func (s *Server) serveStream(ctx context.Context, conn net.Conn) {
 			req:  req,
 		}
 
-		// TODO: pipelining
-		s.Handler.ServeDNS(ctx, sw, req)
+		go s.Handler.ServeDNS(ctx, sw, req)
 	}
 }
 

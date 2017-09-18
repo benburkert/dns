@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"net"
 	"strings"
+	"sync"
 )
 
 // Transport is an implementation of AddrDialer that manages connections to DNS
@@ -19,10 +20,32 @@ type Transport struct {
 
 	// Proxy modifies the address of the DNS server to dial.
 	Proxy ProxyFunc
+
+	// DisablePipelining disables query pipelining for stream oriented
+	// connections as defined in RFC 7766, section 6.2.1.1.
+	DisablePipelining bool
+
+	plinemu sync.Mutex
+	plines  map[net.Addr]*pipeline
 }
 
 // DialAddr dials a net Addr and returns a Conn.
 func (t *Transport) DialAddr(ctx context.Context, addr net.Addr) (Conn, error) {
+	if !t.DisablePipelining {
+		if pline := t.getPipeline(addr); pline != nil && pline.alive() {
+			return pline.conn(), nil
+		}
+	}
+
+	conn, err := t.dialAddr(ctx, addr)
+	if err != nil {
+		return nil, err
+	}
+
+	return conn, nil
+}
+
+func (t *Transport) dialAddr(ctx context.Context, addr net.Addr) (Conn, error) {
 	conn, dnsOverTLS, err := t.dial(ctx, addr)
 	if err != nil {
 		return nil, err
@@ -53,9 +76,17 @@ func (t *Transport) DialAddr(ctx context.Context, addr net.Addr) (Conn, error) {
 			Conn: conn,
 		}, nil
 	}
-	return &StreamConn{
+
+	sconn := &StreamConn{
 		Conn: conn,
-	}, nil
+	}
+
+	if !t.DisablePipelining {
+		pline := t.setPipeline(addr, sconn)
+		return pline.conn(), nil
+	}
+
+	return sconn, nil
 }
 
 var defaultDialer = &net.Dialer{
@@ -70,16 +101,49 @@ func (t *Transport) dial(ctx context.Context, addr net.Addr) (net.Conn, bool, er
 		}
 	}
 
-	dial := t.DialContext
-	if dial == nil {
-		dial = defaultDialer.DialContext
-	}
-
 	network, dnsOverTLS := addr.Network(), false
 	if strings.HasSuffix(network, "-tls") {
 		network, dnsOverTLS = network[:len(network)-4], true
 	}
 
+	dial := t.DialContext
+	if dial == nil {
+		dial = defaultDialer.DialContext
+	}
+
 	conn, err := dial(ctx, network, addr.String())
+	if err != nil {
+		return nil, false, err
+	}
+
 	return conn, dnsOverTLS, err
+}
+
+func (t *Transport) getPipeline(addr net.Addr) *pipeline {
+	t.plinemu.Lock()
+	defer t.plinemu.Unlock()
+
+	if t.plines == nil {
+		t.plines = make(map[net.Addr]*pipeline)
+	}
+
+	return t.plines[addr]
+}
+
+func (t *Transport) setPipeline(addr net.Addr, conn Conn) *pipeline {
+	pline := &pipeline{
+		Conn:     conn,
+		inflight: make(map[int]pipelineTx),
+	}
+	go pline.run()
+
+	t.plinemu.Lock()
+	defer t.plinemu.Unlock()
+
+	if t.plines == nil {
+		t.plines = make(map[net.Addr]*pipeline)
+	}
+
+	t.plines[addr] = pline
+	return pline
 }

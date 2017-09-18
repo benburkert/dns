@@ -7,6 +7,11 @@ import (
 )
 
 var (
+
+	// ErrConflictingIDs is a pipelining error due to the same message ID being
+	// used for more than one inflight query.
+	ErrConflictingID = errors.New("conflicting message id")
+
 	// ErrOversizedMessage is an error returned when attempting to send a
 	// message that is longer than the maximum allowed number of bytes.
 	ErrOversizedMessage = errors.New("oversized message")
