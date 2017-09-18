@@ -3,12 +3,15 @@ package dns
 import (
 	"context"
 	"net"
+	"sync/atomic"
 )
 
 // Client is a DNS client.
 type Client struct {
 	// Transport manages connections to DNS servers.
 	Transport AddrDialer
+
+	id uint32
 }
 
 // Dial dials a DNS server and returns a net Conn that reads and writes DNS
@@ -85,13 +88,25 @@ func (c *Client) dial(ctx context.Context, addr net.Addr) (Conn, error) {
 }
 
 func (c *Client) do(conn Conn, query *Query) (*Message, error) {
-	if err := conn.Send(query.Message); err != nil {
+	id := query.ID
+
+	msg := *query.Message
+	msg.ID = c.nextID()
+
+	if err := conn.Send(&msg); err != nil {
 		return nil, err
 	}
 
-	var msg Message
 	if err := conn.Recv(&msg); err != nil {
 		return nil, err
 	}
+	msg.ID = id
+
 	return &msg, nil
+}
+
+const idMask = (1 << 16) - 1
+
+func (c *Client) nextID() int {
+	return int(atomic.AddUint32(&c.id, 1) & idMask)
 }
