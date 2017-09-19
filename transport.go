@@ -9,7 +9,7 @@ import (
 )
 
 // Transport is an implementation of AddrDialer that manages connections to DNS
-// servers. Transport may modify the sending and recieving of messages but does
+// servers. Transport may modify the sending and receiving of messages but does
 // not modify messages.
 type Transport struct {
 	TLSConfig *tls.Config // optional TLS config, used by DialAddr

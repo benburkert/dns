@@ -3,7 +3,6 @@
 // To automatically enable, link this package into your program:
 //	import _ "github.com/benburkert/dns/init"
 //
-
 package init
 
 import (

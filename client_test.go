@@ -29,11 +29,11 @@ func TestLookupHost(t *testing.T) {
 
 	srv := mustServer(&answerHandler{
 		Answers: map[Question]Resource{
-			Question{
+			{
 				Name:  "localhost.dev.",
 				Type:  TypeA,
 				Class: ClassINET,
-			}: Resource{
+			}: {
 				Name:  "localhost.dev.",
 				Class: ClassINET,
 				TTL:   60,
@@ -41,11 +41,11 @@ func TestLookupHost(t *testing.T) {
 					A: net.IPv4(127, 0, 0, 1),
 				},
 			},
-			Question{
+			{
 				Name:  "localhost.dev.",
 				Type:  TypeAAAA,
 				Class: ClassINET,
-			}: Resource{
+			}: {
 				Name:  "localhost.dev.",
 				Class: ClassINET,
 				TTL:   60,

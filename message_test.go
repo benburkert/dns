@@ -103,7 +103,7 @@ func TestNamePackUnpack(t *testing.T) {
 			}
 
 			if want, got := test.raw, raw; !bytes.Equal(want, got) {
-				t.Fatal("want raw name %x, got %x", want, got)
+				t.Fatalf("want raw name %x, got %x", want, got)
 			}
 
 			name, buf, err := decompressor(nil).Unpack(raw)

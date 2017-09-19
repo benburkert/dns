@@ -146,14 +146,14 @@ func (s *Server) ServePacket(ctx context.Context, conn net.PacketConn) error {
 	}
 }
 
-// Serve accepts incoming connections on the Listener ln, creating a new
+// ServeTLS accepts incoming connections on the Listener ln, creating a new
 // service goroutine for each. The service goroutines read TCP encoded queries
 // over a TLS channel and then call s.Handler to reply to them, in another
 // service goroutine.
 //
 // See RFC 7858, section 3.3 for transport encoding of messages.
 //
-// Serve always returns a non-nil error.
+// ServeTLS always returns a non-nil error.
 func (s *Server) ServeTLS(ctx context.Context, ln net.Listener) error {
 	ln = tls.NewListener(ln, s.TLSConfig.Clone())
 	defer ln.Close()

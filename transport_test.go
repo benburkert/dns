@@ -162,12 +162,12 @@ func testTransport(t *testing.T, tport *Transport, addr net.Addr) {
 
 var (
 	questions = map[string]Question{
-		"A": Question{
+		"A": {
 			Name:  "A.dev.",
 			Type:  TypeA,
 			Class: ClassINET,
 		},
-		"AAAA": Question{
+		"AAAA": {
 			Name:  "AAAA.dev.",
 			Type:  TypeAAAA,
 			Class: ClassINET,
@@ -175,7 +175,7 @@ var (
 	}
 
 	answers = map[Question]Resource{
-		questions["A"]: Resource{
+		questions["A"]: {
 			Name:  "A.dev.",
 			Class: ClassINET,
 			TTL:   60 * time.Second,
@@ -183,7 +183,7 @@ var (
 				A: net.IPv4(127, 0, 0, 1).To4(),
 			},
 		},
-		questions["AAAA"]: Resource{
+		questions["AAAA"]: {
 			Name:  "AAAA.dev.",
 			Class: ClassINET,
 			TTL:   60 * time.Second,
