@@ -70,8 +70,11 @@ func (s streamSession) Read(b []byte) (int, error) {
 		return 0, err
 	}
 
-	b[0] = byte(len(s.rbuf) >> 8)
-	b[1] = byte(len(s.rbuf))
+	mlen := uint16(len(s.rbuf))
+	if int(mlen) != len(s.rbuf) {
+		return 0, ErrOversizedMessage
+	}
+	nbo.PutUint16(b, mlen)
 
 	if len(b) == 2 {
 		return 2, nil
@@ -99,10 +102,10 @@ func (s streamSession) Write(b []byte) (int, error) {
 		return 0, io.ErrShortWrite
 	}
 
-	mlen := int(b[0])<<8 | int(b[1])
+	mlen := nbo.Uint16(b[:2])
 	buf := b[2:]
 
-	if len(buf) != mlen {
+	if int(mlen) != len(buf) {
 		return 0, io.ErrShortWrite
 	}
 

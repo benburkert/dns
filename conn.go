@@ -78,16 +78,16 @@ func (c *StreamConn) Recv(msg *Message) error {
 		return err
 	}
 
-	l := int(c.rbuf[0])<<8 | int(c.rbuf[1])
-	if len(c.rbuf) < l {
-		c.rbuf = make([]byte, l)
+	mlen := nbo.Uint16(c.rbuf[:2])
+	if len(c.rbuf) < int(mlen) {
+		c.rbuf = make([]byte, mlen)
 	}
 
-	if _, err := io.ReadFull(c, c.rbuf[:l]); err != nil {
+	if _, err := io.ReadFull(c, c.rbuf[:mlen]); err != nil {
 		return err
 	}
 
-	_, err := msg.Unpack(c.rbuf[:l])
+	_, err := msg.Unpack(c.rbuf[:mlen])
 	return err
 }
 
@@ -101,7 +101,12 @@ func (c *StreamConn) Send(msg *Message) error {
 	if err != nil {
 		return err
 	}
-	c.wbuf[0], c.wbuf[1] = byte(len(b)>>8), byte(len(b))
+
+	mlen := uint16(len(b))
+	if int(mlen) != len(b) {
+		return ErrOversizedMessage
+	}
+	nbo.PutUint16(c.wbuf[:2], mlen)
 
 	_, err = c.Write(c.wbuf[:len(b)+2])
 	return err
