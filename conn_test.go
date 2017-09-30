@@ -27,7 +27,7 @@ func TestPacketConnRoundTrip(t *testing.T) {
 					{
 						Name:  "example.com.",
 						Type:  TypeA,
-						Class: ClassINET,
+						Class: ClassIN,
 					},
 				},
 			},
@@ -35,7 +35,7 @@ func TestPacketConnRoundTrip(t *testing.T) {
 				Answers: []Resource{
 					{
 						Name:  "example.com.",
-						Class: ClassINET,
+						Class: ClassIN,
 						TTL:   60 * time.Second,
 						Record: &A{
 							A: net.IPv4(127, 0, 0, 1).To4(),
@@ -46,7 +46,7 @@ func TestPacketConnRoundTrip(t *testing.T) {
 					{
 						Name:  "example.com.",
 						Type:  TypeA,
-						Class: ClassINET,
+						Class: ClassIN,
 					},
 				},
 			},
@@ -59,7 +59,7 @@ func TestPacketConnRoundTrip(t *testing.T) {
 					{
 						Name:  strings.Repeat(strings.Repeat("a", 63)+".", 10),
 						Type:  TypeA,
-						Class: ClassINET,
+						Class: ClassIN,
 					},
 				},
 			},
@@ -111,7 +111,7 @@ func TestStreamConnRoundTrip(t *testing.T) {
 					{
 						Name:  "example.com.",
 						Type:  TypeA,
-						Class: ClassINET,
+						Class: ClassIN,
 					},
 				},
 			},
@@ -119,7 +119,7 @@ func TestStreamConnRoundTrip(t *testing.T) {
 				Answers: []Resource{
 					{
 						Name:  "example.com.",
-						Class: ClassINET,
+						Class: ClassIN,
 						TTL:   60 * time.Second,
 						Record: &A{
 							A: net.IPv4(127, 0, 0, 1).To4(),
@@ -130,7 +130,7 @@ func TestStreamConnRoundTrip(t *testing.T) {
 					{
 						Name:  "example.com.",
 						Type:  TypeA,
-						Class: ClassINET,
+						Class: ClassIN,
 					},
 				},
 			},

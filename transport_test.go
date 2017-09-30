@@ -165,19 +165,19 @@ var (
 		"A": {
 			Name:  "A.dev.",
 			Type:  TypeA,
-			Class: ClassINET,
+			Class: ClassIN,
 		},
 		"AAAA": {
 			Name:  "AAAA.dev.",
 			Type:  TypeAAAA,
-			Class: ClassINET,
+			Class: ClassIN,
 		},
 	}
 
 	answers = map[Question]Resource{
 		questions["A"]: {
 			Name:  "A.dev.",
-			Class: ClassINET,
+			Class: ClassIN,
 			TTL:   60 * time.Second,
 			Record: &A{
 				A: net.IPv4(127, 0, 0, 1).To4(),
@@ -185,7 +185,7 @@ var (
 		},
 		questions["AAAA"]: {
 			Name:  "AAAA.dev.",
-			Class: ClassINET,
+			Class: ClassIN,
 			TTL:   60 * time.Second,
 			Record: &AAAA{
 				AAAA: net.ParseIP("::1"),

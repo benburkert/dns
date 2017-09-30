@@ -18,7 +18,7 @@ func TestServerListenAndServe(t *testing.T) {
 		msg := r.Message
 		msg.Answers = append(msg.Answers, Resource{
 			Name:  "test.local.",
-			Class: ClassINET,
+			Class: ClassIN,
 			TTL:   60 * time.Second,
 			Record: &A{
 				A: localhost,

@@ -32,10 +32,10 @@ func TestLookupHost(t *testing.T) {
 			{
 				Name:  "localhost.dev.",
 				Type:  TypeA,
-				Class: ClassINET,
+				Class: ClassIN,
 			}: {
 				Name:  "localhost.dev.",
-				Class: ClassINET,
+				Class: ClassIN,
 				TTL:   60,
 				Record: &A{
 					A: net.IPv4(127, 0, 0, 1),
@@ -44,10 +44,10 @@ func TestLookupHost(t *testing.T) {
 			{
 				Name:  "localhost.dev.",
 				Type:  TypeAAAA,
-				Class: ClassINET,
+				Class: ClassIN,
 			}: {
 				Name:  "localhost.dev.",
-				Class: ClassINET,
+				Class: ClassIN,
 				TTL:   60,
 				Record: &AAAA{
 					AAAA: net.ParseIP("::1"),

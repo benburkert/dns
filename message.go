@@ -25,42 +25,39 @@ type OpCode uint16
 // An RCode is a DNS response status code.
 type RCode uint16
 
-// Wire constants.
+// Domain Name System (DNS) Parameters.
+//
+// Taken from https://www.iana.org/assignments/dns-parameters/dns-parameters.xhtml
 const (
-	// ResourceHeader.Type and Question.Type
-	TypeA     Type = 1
-	TypeNS    Type = 2
-	TypeCNAME Type = 5
-	TypeSOA   Type = 6
-	TypePTR   Type = 12
-	TypeMX    Type = 15
-	TypeTXT   Type = 16
-	TypeAAAA  Type = 28
-	TypeSRV   Type = 33
+	// Resource Record (RR) TYPEs
+	TypeA     Type = 1   // [RFC1035] a host address
+	TypeNS    Type = 2   // [RFC1035] an authoritative name server
+	TypeCNAME Type = 5   // [RFC1035] the canonical name for an alias
+	TypeSOA   Type = 6   // [RFC1035] marks the start of a zone of authority
+	TypeWKS   Type = 11  // [RFC1035] a well known service description
+	TypePTR   Type = 12  // [RFC1035] a domain name pointer
+	TypeHINFO Type = 13  // [RFC1035] host information
+	TypeMINFO Type = 14  // [RFC1035] mailbox or mail list information
+	TypeMX    Type = 15  // [RFC1035] mail exchange
+	TypeTXT   Type = 16  // [RFC1035] text strings
+	TypeAAAA  Type = 28  // [RFC3596] IP6 Address
+	TypeSRV   Type = 33  // [RFC2782] Server Selection
+	TypeAXFR  Type = 252 // [RFC1035][RFC5936] transfer of an entire zone
+	TypeALL   Type = 255 // [RFC1035][RFC6895] A request for all records the server/cache has available
 
-	// Question.Type
-	TypeWKS   Type = 11
-	TypeHINFO Type = 13
-	TypeMINFO Type = 14
-	TypeAXFR  Type = 252
-	TypeALL   Type = 255
+	// DNS CLASSes
+	ClassIN  Class = 1   // [RFC1035] Internet (IN)
+	ClassCH  Class = 3   // [] Chaos (CH)
+	ClassHS  Class = 4   // [] Hesiod (HS)
+	ClassANY Class = 255 // [RFC1035] QCLASS * (ANY)
 
-	// ResourceHeader.Class and Question.Class
-	ClassINET   Class = 1
-	ClassCSNET  Class = 2
-	ClassCHAOS  Class = 3
-	ClassHESIOD Class = 4
-
-	// Question.Class
-	ClassANY Class = 255
-
-	// Message.Rcode
-	RCodeSuccess        RCode = 0
-	RCodeFormatError    RCode = 1
-	RCodeServerFailure  RCode = 2
-	RCodeNameError      RCode = 3
-	RCodeNotImplemented RCode = 4
-	RCodeRefused        RCode = 5
+	// DNS RCODEs
+	NoError  RCode = 0 // [RFC1035] No Error
+	FormErr  RCode = 1 // [RFC1035] Format Error
+	ServFail RCode = 2 // [RFC1035] Server Failure
+	NXDomain RCode = 3 // [RFC1035] Non-Existent Domain
+	NotImp   RCode = 4 // [RFC1035] Not Implemented
+	Refused  RCode = 5 // [RFC1035] Query Refused
 )
 
 // NewRecordByType returns a new instance of a Record for a Type.

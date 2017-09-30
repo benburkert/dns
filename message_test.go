@@ -20,7 +20,7 @@ func TestQuestionPackUnpack(t *testing.T) {
 			question: Question{
 				Name:  ".",
 				Type:  TypeA,
-				Class: ClassINET,
+				Class: ClassIN,
 			},
 
 			raw: []byte{0x0, 0x0, 0x1, 0x0, 0x1},
@@ -29,7 +29,7 @@ func TestQuestionPackUnpack(t *testing.T) {
 			question: Question{
 				Name:  "google.com.",
 				Type:  TypeAAAA,
-				Class: ClassINET,
+				Class: ClassIN,
 			},
 
 			raw: []byte{
@@ -146,7 +146,7 @@ func TestMessagePackUnpack(t *testing.T) {
 					{
 						Name:  ".",
 						Type:  TypeAAAA,
-						Class: ClassINET,
+						Class: ClassIN,
 					},
 				},
 			},
@@ -172,13 +172,13 @@ func TestMessagePackUnpack(t *testing.T) {
 					{
 						Name:  "txt.example.com.",
 						Type:  TypeTXT,
-						Class: ClassINET,
+						Class: ClassIN,
 					},
 				},
 				Answers: []Resource{
 					{
 						Name:   "txt.example.com.",
-						Class:  ClassINET,
+						Class:  ClassIN,
 						TTL:    60 * time.Second,
 						Record: &TXT{[]string{"multi", "segment txt", "record"}},
 					},
@@ -224,13 +224,13 @@ func TestMessagePackUnpack(t *testing.T) {
 					{
 						Name:  ".",
 						Type:  TypeA,
-						Class: ClassINET,
+						Class: ClassIN,
 					},
 				},
 				Answers: []Resource{
 					{
 						Name:  ".",
-						Class: ClassINET,
+						Class: ClassIN,
 						TTL:   60 * time.Second,
 						Record: &A{
 							A: net.IPv4(127, 0, 0, 1).To4(),
@@ -268,13 +268,13 @@ func TestMessagePackUnpack(t *testing.T) {
 					{
 						Name:  ".",
 						Type:  TypeAAAA,
-						Class: ClassINET,
+						Class: ClassIN,
 					},
 				},
 				Answers: []Resource{
 					{
 						Name:  ".",
-						Class: ClassINET,
+						Class: ClassIN,
 						TTL:   60 * time.Second,
 						Record: &AAAA{
 							AAAA: net.ParseIP("::1"),
@@ -312,13 +312,13 @@ func TestMessagePackUnpack(t *testing.T) {
 					{
 						Name:  ".",
 						Type:  TypeCNAME,
-						Class: ClassINET,
+						Class: ClassIN,
 					},
 				},
 				Answers: []Resource{
 					{
 						Name:  ".",
-						Class: ClassINET,
+						Class: ClassIN,
 						TTL:   60 * time.Second,
 						Record: &CNAME{
 							CNAME: "tld.",
@@ -357,13 +357,13 @@ func TestMessagePackUnpack(t *testing.T) {
 					{
 						Name:  ".",
 						Type:  TypeA,
-						Class: ClassINET,
+						Class: ClassIN,
 					},
 				},
 				Authorities: []Resource{
 					{
 						Name:  ".",
-						Class: ClassINET,
+						Class: ClassIN,
 						TTL:   60 * time.Second,
 						Record: &SOA{
 							NS:      "ns.",
@@ -415,13 +415,13 @@ func TestMessagePackUnpack(t *testing.T) {
 					{
 						Name:  "1.0.0.127.in-addr.arpa.",
 						Type:  TypePTR,
-						Class: ClassINET,
+						Class: ClassIN,
 					},
 				},
 				Answers: []Resource{
 					{
 						Name:  "1.0.0.127.in-addr.arpa.",
-						Class: ClassINET,
+						Class: ClassIN,
 						TTL:   60 * time.Second,
 						Record: &PTR{
 							PTR: "localhost.",
@@ -475,13 +475,13 @@ func TestMessagePackUnpack(t *testing.T) {
 					{
 						Name:  ".",
 						Type:  TypeMX,
-						Class: ClassINET,
+						Class: ClassIN,
 					},
 				},
 				Answers: []Resource{
 					{
 						Name:  ".",
-						Class: ClassINET,
+						Class: ClassIN,
 						TTL:   60 * time.Second,
 						Record: &MX{
 							Pref: 101,
@@ -520,13 +520,13 @@ func TestMessagePackUnpack(t *testing.T) {
 					{
 						Name:  ".",
 						Type:  TypeNS,
-						Class: ClassINET,
+						Class: ClassIN,
 					},
 				},
 				Answers: []Resource{
 					{
 						Name:  ".",
-						Class: ClassINET,
+						Class: ClassIN,
 						TTL:   60 * time.Second,
 						Record: &NS{
 							NS: "ns.",
@@ -563,13 +563,13 @@ func TestMessagePackUnpack(t *testing.T) {
 					{
 						Name:  ".",
 						Type:  TypeSRV,
-						Class: ClassINET,
+						Class: ClassIN,
 					},
 				},
 				Answers: []Resource{
 					{
 						Name:  ".",
-						Class: ClassINET,
+						Class: ClassIN,
 						TTL:   60 * time.Second,
 						Record: &SRV{
 							Priority: 0x01,
@@ -608,7 +608,7 @@ func TestMessagePackUnpack(t *testing.T) {
 				Answers: []Resource{
 					{
 						Name:  "example.com.",
-						Class: ClassINET,
+						Class: ClassIN,
 						TTL:   60 * time.Second,
 						Record: &A{
 							A: net.IPv4(127, 0, 0, 1).To4(),
@@ -619,7 +619,7 @@ func TestMessagePackUnpack(t *testing.T) {
 					{
 						Name:  "example.com.",
 						Type:  TypeA,
-						Class: ClassINET,
+						Class: ClassIN,
 					},
 				},
 			},
@@ -698,17 +698,17 @@ func TestMessageCompress(t *testing.T) {
 					{
 						Name:  "aaa.",
 						Type:  TypeA,
-						Class: ClassINET,
+						Class: ClassIN,
 					},
 					{
 						Name:  "bbb.aaa.",
 						Type:  TypeA,
-						Class: ClassINET,
+						Class: ClassIN,
 					},
 					{
 						Name:  "ccc.bbb.aaa.",
 						Type:  TypeA,
-						Class: ClassINET,
+						Class: ClassIN,
 					},
 				},
 			},
@@ -913,13 +913,13 @@ func smallTestMsg() Message {
 			{
 				Name:  name,
 				Type:  TypeA,
-				Class: ClassINET,
+				Class: ClassIN,
 			},
 		},
 		Answers: []Resource{
 			{
 				Name:  name,
-				Class: ClassINET,
+				Class: ClassIN,
 				Record: &A{
 					A: net.IPv4(127, 0, 0, 1).To4(),
 				},
@@ -928,7 +928,7 @@ func smallTestMsg() Message {
 		Authorities: []Resource{
 			{
 				Name:  name,
-				Class: ClassINET,
+				Class: ClassIN,
 				Record: &A{
 					A: net.IPv4(127, 0, 0, 1).To4(),
 				},
@@ -937,7 +937,7 @@ func smallTestMsg() Message {
 		Additionals: []Resource{
 			{
 				Name:  name,
-				Class: ClassINET,
+				Class: ClassIN,
 				Record: &A{
 					A: net.IPv4(127, 0, 0, 1).To4(),
 				},
@@ -956,41 +956,41 @@ func largeTestMsg() Message {
 			{
 				Name:  name,
 				Type:  TypeA,
-				Class: ClassINET,
+				Class: ClassIN,
 			},
 		},
 		Answers: []Resource{
 			{
 				Name:  name,
-				Class: ClassINET,
+				Class: ClassIN,
 				Record: &A{
 					A: net.IPv4(127, 0, 0, 1),
 				},
 			},
 			{
 				Name:  name,
-				Class: ClassINET,
+				Class: ClassIN,
 				Record: &A{
 					A: net.IPv4(127, 0, 0, 2),
 				},
 			},
 			{
 				Name:  name,
-				Class: ClassINET,
+				Class: ClassIN,
 				Record: &AAAA{
 					AAAA: net.ParseIP("::1"),
 				},
 			},
 			{
 				Name:  name,
-				Class: ClassINET,
+				Class: ClassIN,
 				Record: &CNAME{
 					CNAME: "alias.example.com.",
 				},
 			},
 			{
 				Name:  name,
-				Class: ClassINET,
+				Class: ClassIN,
 				Record: &SOA{
 					NS:      "ns1.example.com.",
 					MBox:    "mb.example.com.",
@@ -1003,14 +1003,14 @@ func largeTestMsg() Message {
 			},
 			{
 				Name:  name,
-				Class: ClassINET,
+				Class: ClassIN,
 				Record: &PTR{
 					PTR: "ptr.example.com.",
 				},
 			},
 			{
 				Name:  name,
-				Class: ClassINET,
+				Class: ClassIN,
 				Record: &MX{
 					Pref: 7,
 					MX:   "mx.example.com.",
@@ -1018,7 +1018,7 @@ func largeTestMsg() Message {
 			},
 			{
 				Name:  name,
-				Class: ClassINET,
+				Class: ClassIN,
 				Record: &SRV{
 					Priority: 8,
 					Weight:   9,
@@ -1030,14 +1030,14 @@ func largeTestMsg() Message {
 		Authorities: []Resource{
 			{
 				Name:  name,
-				Class: ClassINET,
+				Class: ClassIN,
 				Record: &NS{
 					NS: "ns1.example.com.",
 				},
 			},
 			{
 				Name:  name,
-				Class: ClassINET,
+				Class: ClassIN,
 				Record: &NS{
 					NS: "ns2.example.com.",
 				},
@@ -1046,14 +1046,14 @@ func largeTestMsg() Message {
 		Additionals: []Resource{
 			{
 				Name:  name,
-				Class: ClassINET,
+				Class: ClassIN,
 				Record: &TXT{
 					TXT: []string{"So Long, and Thanks for All the Fish"},
 				},
 			},
 			{
 				Name:  name,
-				Class: ClassINET,
+				Class: ClassIN,
 				Record: &TXT{
 					TXT: []string{"Hamster Huey and the Gooey Kablooie"},
 				},
