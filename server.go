@@ -36,6 +36,11 @@ type Server struct {
 	Addr      string      // TCP and UDP address to listen on, ":domain" if empty
 	Handler   Handler     // handler to invoke
 	TLSConfig *tls.Config // optional TLS config, used by ListenAndServeTLS
+
+	// ErrorLog specifies an optional logger for errors accepting connections,
+	// reading data, and unpacking messages.
+	// If nil, logging is done via the log package's standard logger.
+	ErrorLog *log.Logger
 }
 
 // ListenAndServe listens on both the TCP and UDP network address s.Addr and
@@ -128,11 +133,11 @@ func (s *Server) ServePacket(ctx context.Context, conn net.PacketConn) error {
 		}
 
 		if buf, err = req.Message.Unpack(buf[:n]); err != nil {
-			log.Printf(err.Error())
+			s.logf("dns unpack: %s", err.Error())
 			continue
 		}
 		if len(buf) != 0 {
-			log.Printf("malformed packet, extra message bytes")
+			s.logf("dns unpack: malformed packet, extra message bytes")
 			continue
 		}
 
@@ -166,7 +171,7 @@ func (s *Server) ServeTLS(ctx context.Context, ln net.Listener) error {
 
 		go func(conn net.Conn) {
 			if err := conn.(*tls.Conn).Handshake(); err != nil {
-				log.Printf(err.Error())
+				s.logf("dns handshake: %s", err.Error())
 				return
 			}
 
@@ -185,14 +190,15 @@ func (s *Server) serveStream(ctx context.Context, conn net.Conn) {
 
 	for {
 		if _, err := rbuf.Read(lbuf[:]); err != nil {
-			// TODO: check for timeout/temporary
-			log.Printf(err.Error())
+			if err != io.EOF {
+				s.logf("dns read: %s", err.Error())
+			}
 			return
 		}
 
 		buf := make([]byte, int(nbo.Uint16(lbuf[:])))
 		if _, err := io.ReadFull(rbuf, buf); err != nil {
-			log.Printf(err.Error())
+			s.logf("dns read: %s", err.Error())
 			return
 		}
 
@@ -203,11 +209,11 @@ func (s *Server) serveStream(ctx context.Context, conn net.Conn) {
 
 		var err error
 		if buf, err = req.Message.Unpack(buf); err != nil {
-			log.Printf(err.Error())
+			s.logf("dns unpack: %s", err.Error())
 			continue
 		}
 		if len(buf) != 0 {
-			log.Printf("malformed packet, extra message bytes")
+			s.logf("dns unpack: malformed packet, extra message bytes")
 			continue
 		}
 
@@ -219,6 +225,15 @@ func (s *Server) serveStream(ctx context.Context, conn net.Conn) {
 
 		go s.Handler.ServeDNS(ctx, sw, req)
 	}
+}
+
+func (s *Server) logf(format string, args ...interface{}) {
+	printf := log.Printf
+	if s.ErrorLog != nil {
+		printf = s.ErrorLog.Printf
+	}
+
+	printf(format, args...)
 }
 
 type packetWriter struct {
