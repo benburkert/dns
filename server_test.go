@@ -15,17 +15,9 @@ func TestServerListenAndServe(t *testing.T) {
 	localhost := net.IPv4(127, 0, 0, 1).To4()
 
 	srv := mustServer(HandlerFunc(func(ctx context.Context, w MessageWriter, r *Query) {
-		msg := r.Message
-		msg.Answers = append(msg.Answers, Resource{
-			Name:  "test.local.",
-			Class: ClassIN,
-			TTL:   60 * time.Second,
-			Record: &A{
-				A: localhost,
-			},
-		})
+		w.TTL(60 * time.Second)
 
-		w.Send(msg)
+		w.Answer("test.local.", &A{A: localhost})
 	}))
 
 	addrUDP, err := net.ResolveUDPAddr("udp", srv.Addr)

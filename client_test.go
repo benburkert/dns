@@ -28,30 +28,20 @@ func TestLookupHost(t *testing.T) {
 	}
 
 	srv := mustServer(&answerHandler{
-		Answers: map[Question]Resource{
+		Answers: map[Question]Record{
 			{
 				Name:  "localhost.dev.",
 				Type:  TypeA,
 				Class: ClassIN,
-			}: {
-				Name:  "localhost.dev.",
-				Class: ClassIN,
-				TTL:   60,
-				Record: &A{
-					A: net.IPv4(127, 0, 0, 1),
-				},
+			}: &A{
+				A: net.IPv4(127, 0, 0, 1),
 			},
 			{
 				Name:  "localhost.dev.",
 				Type:  TypeAAAA,
 				Class: ClassIN,
-			}: {
-				Name:  "localhost.dev.",
-				Class: ClassIN,
-				TTL:   60,
-				Record: &AAAA{
-					AAAA: net.ParseIP("::1"),
-				},
+			}: &AAAA{
+				AAAA: net.ParseIP("::1"),
 			},
 		},
 	})

@@ -10,12 +10,11 @@ import (
 	"sync"
 )
 
-// MessageWriter is used by a DNS handler to respond to a DNS query.
-type MessageWriter interface {
-	Send(*Message) error
-}
-
 // Handler responds to a DNS query.
+//
+// ServeDNS should build the reply message using the MessageWriter, and may
+// optionally call the Reply method. Returning signals that the request is
+// finished and the response is ready to send.
 type Handler interface {
 	ServeDNS(context.Context, MessageWriter, *Query)
 }
@@ -141,13 +140,16 @@ func (s *Server) ServePacket(ctx context.Context, conn net.PacketConn) error {
 			continue
 		}
 
-		pw := packetWriter{
-			conn: conn,
+		pw := &packetWriter{
+			messageWriter: &messageWriter{
+				res: response(req.Message),
+			},
+
 			addr: addr,
-			req:  req,
+			conn: conn,
 		}
 
-		go s.Handler.ServeDNS(ctx, pw, req)
+		go s.handle(ctx, pw, req)
 	}
 }
 
@@ -218,12 +220,27 @@ func (s *Server) serveStream(ctx context.Context, conn net.Conn) {
 		}
 
 		sw := streamWriter{
+			messageWriter: &messageWriter{
+				res: response(req.Message),
+			},
+
 			mu:   &mu,
 			conn: conn,
-			req:  req,
 		}
 
-		go s.Handler.ServeDNS(ctx, sw, req)
+		go s.handle(ctx, sw, req)
+	}
+}
+
+func (s *Server) handle(ctx context.Context, w MessageWriter, r *Query) {
+	aw := &autoWriter{MessageWriter: w}
+
+	s.Handler.ServeDNS(ctx, aw, r)
+
+	if !aw.replied {
+		if err := aw.Reply(ctx); err != nil {
+			s.logf("dns: %s", err.Error())
+		}
 	}
 }
 
@@ -236,43 +253,11 @@ func (s *Server) logf(format string, args ...interface{}) {
 	printf(format, args...)
 }
 
-type packetWriter struct {
-	conn net.PacketConn
-	addr net.Addr
+func response(req *Message) *Message {
+	res := new(Message)
+	*res = *req // shallow copy
 
-	req *Query
-}
+	res.Response = true
 
-func (w packetWriter) Send(msg *Message) error {
-	buf, err := msg.Pack(nil, true)
-	if err != nil {
-		return err
-	}
-
-	_, err = w.conn.WriteTo(buf, w.addr)
-	return err
-}
-
-type streamWriter struct {
-	mu *sync.Mutex
-
-	conn net.Conn
-
-	req *Query
-}
-
-func (w streamWriter) Send(msg *Message) error {
-	buf, err := msg.Pack(make([]byte, 2), true)
-	if err != nil {
-		return err
-	}
-
-	blen := uint16(len(buf) - 2)
-	if int(blen) != len(buf)-2 {
-		return ErrOversizedMessage
-	}
-	nbo.PutUint16(buf[:2], blen)
-
-	_, err = w.conn.Write(buf)
-	return err
+	return res
 }

@@ -3,7 +3,6 @@ package dns
 import (
 	"context"
 	"crypto/tls"
-	"log"
 	"net"
 	"reflect"
 	"testing"
@@ -31,7 +30,14 @@ var transportTests = []struct {
 			ID:        1,
 			Response:  true,
 			Questions: []Question{questions["A"]},
-			Answers:   []Resource{answers[questions["A"]]},
+			Answers: []Resource{
+				{
+					Name:   "A.dev.",
+					Class:  ClassIN,
+					TTL:    60 * time.Second,
+					Record: answers[questions["A"]],
+				},
+			},
 		},
 	},
 	{
@@ -46,7 +52,14 @@ var transportTests = []struct {
 			ID:        2,
 			Response:  true,
 			Questions: []Question{questions["AAAA"]},
-			Answers:   []Resource{answers[questions["AAAA"]]},
+			Answers: []Resource{
+				{
+					Name:   "AAAA.dev.",
+					Class:  ClassIN,
+					TTL:    60 * time.Second,
+					Record: answers[questions["AAAA"]],
+				},
+			},
 		},
 	},
 }
@@ -174,44 +187,26 @@ var (
 		},
 	}
 
-	answers = map[Question]Resource{
-		questions["A"]: {
-			Name:  "A.dev.",
-			Class: ClassIN,
-			TTL:   60 * time.Second,
-			Record: &A{
-				A: net.IPv4(127, 0, 0, 1).To4(),
-			},
+	answers = map[Question]Record{
+		questions["A"]: &A{
+			A: net.IPv4(127, 0, 0, 1).To4(),
 		},
-		questions["AAAA"]: {
-			Name:  "AAAA.dev.",
-			Class: ClassIN,
-			TTL:   60 * time.Second,
-			Record: &AAAA{
-				AAAA: net.ParseIP("::1"),
-			},
+		questions["AAAA"]: &AAAA{
+			AAAA: net.ParseIP("::1"),
 		},
 	}
 )
 
 type answerHandler struct {
-	Answers map[Question]Resource
+	Answers map[Question]Record
 }
 
 func (a *answerHandler) ServeDNS(ctx context.Context, w MessageWriter, r *Query) {
-	msg := &Message{
-		ID:        r.ID,
-		Response:  true,
-		Questions: r.Questions,
-	}
+	w.TTL(60 * time.Second)
 
 	for _, q := range r.Questions {
 		if answer, ok := a.Answers[q]; ok {
-			msg.Answers = append(msg.Answers, answer)
+			w.Answer(q.Name, answer)
 		}
-	}
-
-	if err := w.Send(msg); err != nil {
-		log.Println(err)
 	}
 }
