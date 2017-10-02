@@ -5,6 +5,7 @@ import (
 	"context"
 	"net"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -57,6 +58,65 @@ func TestServerListenAndServe(t *testing.T) {
 
 	if !reflect.DeepEqual(msgUDP, msgTCP) {
 		t.Error("UDP and TCP messages did not match")
+	}
+}
+
+func TestServerMessageTruncation(t *testing.T) {
+	localhost := net.IPv4(127, 0, 0, 1).To4()
+
+	errc := make(chan error)
+	srv := mustServer(HandlerFunc(func(ctx context.Context, w MessageWriter, r *Query) {
+		w.TTL(60 * time.Second)
+
+		for i := 1; i < 63; i++ {
+			w.Answer(strings.Repeat("a", i)+".localhost.", &A{A: localhost})
+		}
+
+		errc <- w.Reply(ctx)
+	}))
+
+	addrUDP, err := net.ResolveUDPAddr("udp", srv.Addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	query := &Query{
+		RemoteAddr: addrUDP,
+		Message: &Message{
+			Questions: []Question{
+				{Name: "test.local.", Type: TypeA},
+			},
+		},
+	}
+
+	msg, err := new(Client).Do(context.Background(), query)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !msg.Truncated {
+		t.Error("udp message not truncated")
+	}
+
+	if want, got := ErrMessageTruncated, <-errc; want != got {
+		t.Fatal("want error %q, got %q", want, got)
+	}
+
+	addrTCP, err := net.ResolveTCPAddr("tcp", srv.Addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	query.RemoteAddr = addrTCP
+
+	if msg, err = new(Client).Do(context.Background(), query); err != nil {
+		t.Fatal(err)
+	}
+	if msg.Truncated {
+		t.Error("tcp message truncated")
+	}
+
+	if err := <-errc; err != nil {
+		t.Error(err)
 	}
 }
 

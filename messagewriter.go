@@ -2,10 +2,14 @@ package dns
 
 import (
 	"context"
+	"errors"
 	"net"
 	"sync"
 	"time"
 )
+
+// ErrMessageTruncated indicates that a response message has been truncated.
+var ErrMessageTruncated = errors.New("message truncated")
 
 // MessageWriter is used by a DNS handler to serve a DNS query.
 type MessageWriter interface {
@@ -27,6 +31,9 @@ type MessageWriter interface {
 	Additional(fqdn string, rr Record)
 
 	// Reply sends the response message.
+	//
+	// For large messages sent over a UDP connection, the message may be
+	// truncated and return an ErrMessageTruncated error.
 	Reply(context.Context) error
 }
 
@@ -76,8 +83,30 @@ func (w packetWriter) Reply(ctx context.Context) error {
 		return err
 	}
 
+	if len(buf) > 512 {
+		return w.truncate(buf)
+	}
+
 	_, err = w.conn.WriteTo(buf, w.addr)
 	return err
+}
+
+func (w packetWriter) truncate(buf []byte) error {
+	msg := new(Message)
+	if _, err := msg.Unpack(buf[:512]); err != nil && err != errResourceLen {
+		return err
+	}
+	msg.Truncated = true
+
+	var err error
+	if buf, err = msg.Pack(buf[:0], true); err != nil {
+		return err
+	}
+
+	if _, err := w.conn.WriteTo(buf, w.addr); err != nil {
+		return err
+	}
+	return ErrMessageTruncated
 }
 
 type streamWriter struct {
