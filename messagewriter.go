@@ -20,15 +20,12 @@ type MessageWriter interface {
 	// Status sets the Response code (RCODE) bits of the header.
 	Status(RCode)
 
-	// TTL sets the value for additional records.
-	TTL(time.Duration)
-
 	// Answer adds a record to the answers section.
-	Answer(fqdn string, rr Record)
+	Answer(string, time.Duration, Record)
 	// Authority adds a record to the authority section.
-	Authority(fqdn string, rr Record)
+	Authority(string, time.Duration, Record)
 	// Additional adds a record to the additional section
-	Additional(fqdn string, rr Record)
+	Additional(string, time.Duration, Record)
 
 	// Reply sends the response message.
 	//
@@ -39,33 +36,29 @@ type MessageWriter interface {
 
 type messageWriter struct {
 	res *Message
-
-	ttl time.Duration
 }
 
 func (w *messageWriter) Authoritative(aa bool) { w.res.Authoritative = aa }
 func (w *messageWriter) Recursion(ra bool)     { w.res.RecursionAvailable = ra }
 func (w *messageWriter) Status(rc RCode)       { w.res.RCode = rc }
 
-func (w *messageWriter) TTL(ttl time.Duration) { w.ttl = ttl }
-
-func (w *messageWriter) Answer(fqdn string, rec Record) {
-	w.res.Answers = append(w.res.Answers, w.rr(fqdn, rec))
+func (w *messageWriter) Answer(fqdn string, ttl time.Duration, rec Record) {
+	w.res.Answers = append(w.res.Answers, w.rr(fqdn, ttl, rec))
 }
 
-func (w *messageWriter) Authority(fqdn string, rec Record) {
-	w.res.Authorities = append(w.res.Authorities, w.rr(fqdn, rec))
+func (w *messageWriter) Authority(fqdn string, ttl time.Duration, rec Record) {
+	w.res.Authorities = append(w.res.Authorities, w.rr(fqdn, ttl, rec))
 }
 
-func (w *messageWriter) Additional(fqdn string, rec Record) {
-	w.res.Additionals = append(w.res.Additionals, w.rr(fqdn, rec))
+func (w *messageWriter) Additional(fqdn string, ttl time.Duration, rec Record) {
+	w.res.Additionals = append(w.res.Additionals, w.rr(fqdn, ttl, rec))
 }
 
-func (w *messageWriter) rr(fqdn string, rec Record) Resource {
+func (w *messageWriter) rr(fqdn string, ttl time.Duration, rec Record) Resource {
 	return Resource{
 		Name:   fqdn,
 		Class:  ClassIN,
-		TTL:    w.ttl,
+		TTL:    ttl,
 		Record: rec,
 	}
 }

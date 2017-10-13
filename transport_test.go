@@ -202,11 +202,9 @@ type answerHandler struct {
 }
 
 func (a *answerHandler) ServeDNS(ctx context.Context, w MessageWriter, r *Query) {
-	w.TTL(60 * time.Second)
-
 	for _, q := range r.Questions {
 		if answer, ok := a.Answers[q]; ok {
-			w.Answer(q.Name, answer)
+			w.Answer(q.Name, time.Minute, answer)
 		}
 	}
 }

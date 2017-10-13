@@ -16,9 +16,7 @@ func TestServerListenAndServe(t *testing.T) {
 	localhost := net.IPv4(127, 0, 0, 1).To4()
 
 	srv := mustServer(HandlerFunc(func(ctx context.Context, w MessageWriter, r *Query) {
-		w.TTL(60 * time.Second)
-
-		w.Answer("test.local.", &A{A: localhost})
+		w.Answer("test.local.", time.Minute, &A{A: localhost})
 	}))
 
 	addrUDP, err := net.ResolveUDPAddr("udp", srv.Addr)
@@ -66,10 +64,8 @@ func TestServerMessageTruncation(t *testing.T) {
 
 	errc := make(chan error)
 	srv := mustServer(HandlerFunc(func(ctx context.Context, w MessageWriter, r *Query) {
-		w.TTL(60 * time.Second)
-
 		for i := 1; i < 63; i++ {
-			w.Answer(strings.Repeat("a", i)+".localhost.", &A{A: localhost})
+			w.Answer(strings.Repeat("a", i)+".localhost.", time.Minute, &A{A: localhost})
 		}
 
 		errc <- w.Reply(ctx)

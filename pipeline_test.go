@@ -12,17 +12,15 @@ func TestPipeline(t *testing.T) {
 	stallc := make(chan struct{})
 	errc := make(chan error, 1)
 	srv := mustServer(HandlerFunc(func(ctx context.Context, w MessageWriter, r *Query) {
-		w.TTL(60 * time.Second)
-
 		switch r.ID {
 		case 1:
 			<-stallc
 
-			w.Answer("AAAA.dev.", answers[questions["AAAA"]])
+			w.Answer("AAAA.dev.", time.Minute, answers[questions["AAAA"]])
 		case 2:
 			defer close(stallc)
 
-			w.Answer("A.dev.", answers[questions["A"]])
+			w.Answer("A.dev.", time.Minute, answers[questions["A"]])
 		default:
 			w.Status(NXDomain)
 
