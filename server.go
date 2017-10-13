@@ -15,6 +15,10 @@ import (
 // ServeDNS should build the reply message using the MessageWriter, and may
 // optionally call the Reply method. Returning signals that the request is
 // finished and the response is ready to send.
+//
+// A recursive handler may call the Recur method of the MessageWriter to send
+// an query upstream. Only unanswered questions are included in the upstream
+// query.
 type Handler interface {
 	ServeDNS(context.Context, MessageWriter, *Query)
 }
@@ -260,6 +264,10 @@ type packetWriter struct {
 	conn net.PacketConn
 }
 
+func (w packetWriter) Recur(ctx context.Context) (*Message, error) {
+	return nil, ErrUnsupportedOp
+}
+
 func (w packetWriter) Reply(ctx context.Context) error {
 	buf, err := w.msg.Pack(nil, true)
 	if err != nil {
@@ -297,6 +305,10 @@ type streamWriter struct {
 
 	mu   *sync.Mutex
 	conn net.Conn
+}
+
+func (w streamWriter) Recur(ctx context.Context) (*Message, error) {
+	return nil, ErrUnsupportedOp
 }
 
 func (w streamWriter) Reply(ctx context.Context) error {

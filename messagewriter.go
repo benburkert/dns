@@ -21,6 +21,10 @@ type MessageWriter interface {
 	// Additional adds a record to the additional section
 	Additional(string, time.Duration, Record)
 
+	// Recur forwards the request query upstream, and returns the response
+	// message or error.
+	Recur(context.Context) (*Message, error)
+
 	// Reply sends the response message.
 	//
 	// For large messages sent over a UDP connection, an ErrTruncatedMessage

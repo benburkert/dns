@@ -22,6 +22,9 @@ var (
 	// ErrUnsupportedNetwork is returned when DialAddr is called with an
 	// unknown network.
 	ErrUnsupportedNetwork = errors.New("unsupported network")
+
+	// ErrUnsupportedOp indicates the operation is not supported by callee.
+	ErrUnsupportedOp = errors.New("unsupported operation")
 )
 
 // AddrDialer dials a net Addr.
