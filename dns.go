@@ -7,7 +7,6 @@ import (
 )
 
 var (
-
 	// ErrConflictingID is a pipelining error due to the same message ID being
 	// used for more than one inflight query.
 	ErrConflictingID = errors.New("conflicting message id")

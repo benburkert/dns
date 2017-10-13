@@ -93,7 +93,7 @@ func TestServerMessageTruncation(t *testing.T) {
 	}
 
 	if want, got := ErrTruncatedMessage, <-errc; want != got {
-		t.Fatal("want error %q, got %q", want, got)
+		t.Fatalf("want error %q, got %q", want, got)
 	}
 
 	addrTCP, err := net.ResolveTCPAddr("tcp", srv.Addr)

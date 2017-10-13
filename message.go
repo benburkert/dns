@@ -265,8 +265,6 @@ func (m *Message) packHeader(b []byte) ([]byte, error) {
 	return append(b, buf[:]...), nil
 }
 
-var headerSpace = [12]byte{}
-
 func (m *Message) unpackHeader(b []byte) ([]byte, error) {
 	if len(b) < 12 {
 		return nil, errResourceLen
@@ -432,7 +430,6 @@ func (r *Resource) Unpack(b []byte, dec Decompressor) ([]byte, error) {
 	r.Record = record
 
 	return b[rdlen:], nil
-
 }
 
 // Record is a DNS record.
