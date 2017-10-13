@@ -1,6 +1,7 @@
 package dns
 
 import (
+	"context"
 	"io"
 	"net"
 )
@@ -140,7 +141,7 @@ type msgerr struct {
 }
 
 func (s *session) do(query *Query) {
-	msg, err := s.client.do(s.Conn, query)
+	msg, err := s.client.do(context.Background(), s.Conn, query)
 	s.msgerrc <- msgerr{msg, err}
 }
 

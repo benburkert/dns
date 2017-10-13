@@ -11,6 +11,11 @@ type Client struct {
 	// Transport manages connections to DNS servers.
 	Transport AddrDialer
 
+	// Resolver is a handler that may answer all or portions of a query.
+	// Any questions answered by the handler are not sent to the upstream
+	// server.
+	Resolver Handler
+
 	id uint32
 }
 
@@ -75,7 +80,7 @@ func (c *Client) Do(ctx context.Context, query *Query) (*Message, error) {
 		}
 	}
 
-	return c.do(conn, query)
+	return c.do(ctx, conn, query)
 }
 
 func (c *Client) dial(ctx context.Context, addr net.Addr) (Conn, error) {
@@ -87,7 +92,31 @@ func (c *Client) dial(ctx context.Context, addr net.Addr) (Conn, error) {
 	return tport.DialAddr(ctx, addr)
 }
 
-func (c *Client) do(conn Conn, query *Query) (*Message, error) {
+func (c *Client) do(ctx context.Context, conn Conn, query *Query) (*Message, error) {
+	if c.Resolver == nil {
+		return c.roundtrip(conn, query)
+	}
+
+	w := &clientWriter{
+		messageWriter: &messageWriter{
+			msg: response(query.Message),
+		},
+
+		req:  request(query.Message),
+		addr: query.RemoteAddr,
+		conn: conn,
+
+		roundtrip: c.roundtrip,
+	}
+
+	c.Resolver.ServeDNS(ctx, w, query)
+	if w.err != nil {
+		return nil, w.err
+	}
+	return response(w.msg), nil
+}
+
+func (c *Client) roundtrip(conn Conn, query *Query) (*Message, error) {
 	id := query.ID
 
 	msg := *query.Message
@@ -109,4 +138,81 @@ const idMask = (1 << 16) - 1
 
 func (c *Client) nextID() int {
 	return int(atomic.AddUint32(&c.id, 1) & idMask)
+}
+
+type clientWriter struct {
+	*messageWriter
+
+	req *Message
+	err error
+
+	addr net.Addr
+	conn Conn
+
+	roundtrip func(Conn, *Query) (*Message, error)
+}
+
+func (w *clientWriter) Recur(context.Context) (*Message, error) {
+	qs := make([]Question, 0, len(w.req.Questions))
+	for _, q := range w.req.Questions {
+		if !questionMatched(q, w.msg) {
+			qs = append(qs, q)
+		}
+	}
+	w.req.Questions = qs
+
+	req := &Query{
+		Message:    w.req,
+		RemoteAddr: w.addr,
+	}
+
+	msg, err := w.roundtrip(w.conn, req)
+	if err != nil {
+		w.err = err
+	}
+
+	writeMessage(w, msg)
+	return msg, err
+}
+
+func (w *clientWriter) Reply(context.Context) error {
+	return ErrUnsupportedOp
+}
+
+func request(msg *Message) *Message {
+	req := new(Message)
+	*req = *msg // shallow copy
+
+	return req
+}
+
+func questionMatched(q Question, msg *Message) bool {
+	mrs := [3][]Resource{
+		msg.Answers,
+		msg.Authorities,
+		msg.Additionals,
+	}
+
+	for _, rs := range mrs {
+		for _, res := range rs {
+			if res.Name == q.Name {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func writeMessage(w MessageWriter, msg *Message) {
+	w.Status(msg.RCode)
+	for _, res := range msg.Answers {
+		w.Answer(res.Name, res.TTL, res.Record)
+	}
+	for _, res := range msg.Authorities {
+		w.Authority(res.Name, res.TTL, res.Record)
+	}
+	for _, res := range msg.Additionals {
+		w.Additional(res.Name, res.TTL, res.Record)
+	}
 }
