@@ -58,6 +58,8 @@ const (
 	NXDomain RCode = 3 // [RFC1035] Non-Existent Domain
 	NotImp   RCode = 4 // [RFC1035] Not Implemented
 	Refused  RCode = 5 // [RFC1035] Query Refused
+
+	maxPacketLen = 512
 )
 
 // NewRecordByType returns a new instance of a Record for a Type.
@@ -121,7 +123,7 @@ type Message struct {
 // Domain name compression is enabled by setting compress.
 func (m *Message) Pack(b []byte, compress bool) ([]byte, error) {
 	if b == nil {
-		b = make([]byte, 0, 512)
+		b = make([]byte, 0, maxPacketLen)
 	}
 
 	var com Compressor

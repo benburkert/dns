@@ -2,14 +2,8 @@ package dns
 
 import (
 	"context"
-	"errors"
-	"net"
-	"sync"
 	"time"
 )
-
-// ErrMessageTruncated indicates that a response message has been truncated.
-var ErrMessageTruncated = errors.New("message truncated")
 
 // MessageWriter is used by a DNS handler to serve a DNS query.
 type MessageWriter interface {
@@ -29,29 +23,29 @@ type MessageWriter interface {
 
 	// Reply sends the response message.
 	//
-	// For large messages sent over a UDP connection, the message may be
-	// truncated and return an ErrMessageTruncated error.
+	// For large messages sent over a UDP connection, an ErrTruncatedMessage
+	// error is returned if the message was truncated.
 	Reply(context.Context) error
 }
 
 type messageWriter struct {
-	res *Message
+	msg *Message
 }
 
-func (w *messageWriter) Authoritative(aa bool) { w.res.Authoritative = aa }
-func (w *messageWriter) Recursion(ra bool)     { w.res.RecursionAvailable = ra }
-func (w *messageWriter) Status(rc RCode)       { w.res.RCode = rc }
+func (w *messageWriter) Authoritative(aa bool) { w.msg.Authoritative = aa }
+func (w *messageWriter) Recursion(ra bool)     { w.msg.RecursionAvailable = ra }
+func (w *messageWriter) Status(rc RCode)       { w.msg.RCode = rc }
 
 func (w *messageWriter) Answer(fqdn string, ttl time.Duration, rec Record) {
-	w.res.Answers = append(w.res.Answers, w.rr(fqdn, ttl, rec))
+	w.msg.Answers = append(w.msg.Answers, w.rr(fqdn, ttl, rec))
 }
 
 func (w *messageWriter) Authority(fqdn string, ttl time.Duration, rec Record) {
-	w.res.Authorities = append(w.res.Authorities, w.rr(fqdn, ttl, rec))
+	w.msg.Authorities = append(w.msg.Authorities, w.rr(fqdn, ttl, rec))
 }
 
 func (w *messageWriter) Additional(fqdn string, ttl time.Duration, rec Record) {
-	w.res.Additionals = append(w.res.Additionals, w.rr(fqdn, ttl, rec))
+	w.msg.Additionals = append(w.msg.Additionals, w.rr(fqdn, ttl, rec))
 }
 
 func (w *messageWriter) rr(fqdn string, ttl time.Duration, rec Record) Resource {
@@ -61,81 +55,4 @@ func (w *messageWriter) rr(fqdn string, ttl time.Duration, rec Record) Resource 
 		TTL:    ttl,
 		Record: rec,
 	}
-}
-
-type packetWriter struct {
-	*messageWriter
-
-	addr net.Addr
-	conn net.PacketConn
-}
-
-func (w packetWriter) Reply(ctx context.Context) error {
-	buf, err := w.res.Pack(nil, true)
-	if err != nil {
-		return err
-	}
-
-	if len(buf) > 512 {
-		return w.truncate(buf)
-	}
-
-	_, err = w.conn.WriteTo(buf, w.addr)
-	return err
-}
-
-func (w packetWriter) truncate(buf []byte) error {
-	msg := new(Message)
-	if _, err := msg.Unpack(buf[:512]); err != nil && err != errResourceLen {
-		return err
-	}
-	msg.Truncated = true
-
-	var err error
-	if buf, err = msg.Pack(buf[:0], true); err != nil {
-		return err
-	}
-
-	if _, err := w.conn.WriteTo(buf, w.addr); err != nil {
-		return err
-	}
-	return ErrMessageTruncated
-}
-
-type streamWriter struct {
-	*messageWriter
-
-	mu   *sync.Mutex
-	conn net.Conn
-}
-
-func (w streamWriter) Reply(ctx context.Context) error {
-	buf, err := w.res.Pack(make([]byte, 2), true)
-	if err != nil {
-		return err
-	}
-
-	blen := uint16(len(buf) - 2)
-	if int(blen) != len(buf)-2 {
-		return ErrOversizedMessage
-	}
-	nbo.PutUint16(buf[:2], blen)
-
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	_, err = w.conn.Write(buf)
-	return err
-}
-
-type autoWriter struct {
-	MessageWriter
-
-	replied bool
-}
-
-func (w autoWriter) Reply(ctx context.Context) error {
-	w.replied = true
-
-	return w.MessageWriter.Reply(ctx)
 }

@@ -16,6 +16,9 @@ var (
 	// message that is longer than the maximum allowed number of bytes.
 	ErrOversizedMessage = errors.New("oversized message")
 
+	// ErrTruncatedMessage indicates the response message has been truncated.
+	ErrTruncatedMessage = errors.New("truncated message")
+
 	// ErrUnsupportedNetwork is returned when DialAddr is called with an
 	// unknown network.
 	ErrUnsupportedNetwork = errors.New("unsupported network")

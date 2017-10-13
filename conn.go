@@ -27,8 +27,8 @@ type PacketConn struct {
 
 // Recv reads a DNS message from the underlying connection.
 func (c *PacketConn) Recv(msg *Message) error {
-	if len(c.rbuf) != 512 {
-		c.rbuf = make([]byte, 512)
+	if len(c.rbuf) != maxPacketLen {
+		c.rbuf = make([]byte, maxPacketLen)
 	}
 
 	n, err := c.Read(c.rbuf)
@@ -42,8 +42,8 @@ func (c *PacketConn) Recv(msg *Message) error {
 
 // Send writes a DNS message to the underlying connection.
 func (c *PacketConn) Send(msg *Message) error {
-	if len(c.wbuf) != 512 {
-		c.wbuf = make([]byte, 512)
+	if len(c.wbuf) != maxPacketLen {
+		c.wbuf = make([]byte, maxPacketLen)
 	}
 
 	var err error
@@ -51,7 +51,7 @@ func (c *PacketConn) Send(msg *Message) error {
 		return err
 	}
 
-	if len(c.wbuf) > 512 {
+	if len(c.wbuf) > maxPacketLen {
 		return ErrOversizedMessage
 	}
 

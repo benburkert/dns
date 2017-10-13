@@ -1,7 +1,6 @@
 package dns
 
 import (
-	"bytes"
 	"context"
 	"net"
 	"reflect"
@@ -38,7 +37,7 @@ func TestServerListenAndServe(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if want, got := localhost, msgUDP.Answers[0].Record.(*A).A.To4(); !bytes.Equal(want, got) {
+	if want, got := localhost, msgUDP.Answers[0].Record.(*A).A; !want.Equal(got) {
 		t.Errorf("want A record %q, got %q", want, got)
 	}
 
@@ -93,7 +92,7 @@ func TestServerMessageTruncation(t *testing.T) {
 		t.Error("udp message not truncated")
 	}
 
-	if want, got := ErrMessageTruncated, <-errc; want != got {
+	if want, got := ErrTruncatedMessage, <-errc; want != got {
 		t.Fatal("want error %q, got %q", want, got)
 	}
 

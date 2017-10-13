@@ -120,7 +120,7 @@ func (s *Server) ServePacket(ctx context.Context, conn net.PacketConn) error {
 	defer conn.Close()
 
 	for {
-		buf := make([]byte, 512)
+		buf := make([]byte, maxPacketLen)
 		n, addr, err := conn.ReadFrom(buf)
 		if err != nil {
 			return err
@@ -142,7 +142,7 @@ func (s *Server) ServePacket(ctx context.Context, conn net.PacketConn) error {
 
 		pw := &packetWriter{
 			messageWriter: &messageWriter{
-				res: response(req.Message),
+				msg: response(req.Message),
 			},
 
 			addr: addr,
@@ -221,7 +221,7 @@ func (s *Server) serveStream(ctx context.Context, conn net.Conn) {
 
 		sw := streamWriter{
 			messageWriter: &messageWriter{
-				res: response(req.Message),
+				msg: response(req.Message),
 			},
 
 			mu:   &mu,
@@ -233,12 +233,12 @@ func (s *Server) serveStream(ctx context.Context, conn net.Conn) {
 }
 
 func (s *Server) handle(ctx context.Context, w MessageWriter, r *Query) {
-	aw := &autoWriter{MessageWriter: w}
+	sw := &serverWriter{MessageWriter: w}
 
-	s.Handler.ServeDNS(ctx, aw, r)
+	s.Handler.ServeDNS(ctx, sw, r)
 
-	if !aw.replied {
-		if err := aw.Reply(ctx); err != nil {
+	if !sw.replied {
+		if err := sw.Reply(ctx); err != nil {
 			s.logf("dns: %s", err.Error())
 		}
 	}
@@ -253,9 +253,86 @@ func (s *Server) logf(format string, args ...interface{}) {
 	printf(format, args...)
 }
 
-func response(req *Message) *Message {
+type packetWriter struct {
+	*messageWriter
+
+	addr net.Addr
+	conn net.PacketConn
+}
+
+func (w packetWriter) Reply(ctx context.Context) error {
+	buf, err := w.msg.Pack(nil, true)
+	if err != nil {
+		return err
+	}
+
+	if len(buf) > maxPacketLen {
+		return w.truncate(buf)
+	}
+
+	_, err = w.conn.WriteTo(buf, w.addr)
+	return err
+}
+
+func (w packetWriter) truncate(buf []byte) error {
+	msg := new(Message)
+	if _, err := msg.Unpack(buf[:maxPacketLen]); err != nil && err != errResourceLen {
+		return err
+	}
+	msg.Truncated = true
+
+	var err error
+	if buf, err = msg.Pack(buf[:0], true); err != nil {
+		return err
+	}
+
+	if _, err := w.conn.WriteTo(buf, w.addr); err != nil {
+		return err
+	}
+	return ErrTruncatedMessage
+}
+
+type streamWriter struct {
+	*messageWriter
+
+	mu   *sync.Mutex
+	conn net.Conn
+}
+
+func (w streamWriter) Reply(ctx context.Context) error {
+	buf, err := w.msg.Pack(make([]byte, 2), true)
+	if err != nil {
+		return err
+	}
+
+	blen := uint16(len(buf) - 2)
+	if int(blen) != len(buf)-2 {
+		return ErrOversizedMessage
+	}
+	nbo.PutUint16(buf[:2], blen)
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	_, err = w.conn.Write(buf)
+	return err
+}
+
+type serverWriter struct {
+	MessageWriter
+
+	replied bool
+}
+
+func (w serverWriter) Reply(ctx context.Context) error {
+	w.replied = true
+
+	return w.MessageWriter.Reply(ctx)
+}
+
+func response(msg *Message) *Message {
 	res := new(Message)
-	*res = *req // shallow copy
+	*res = *msg // shallow copy
 
 	res.Response = true
 
