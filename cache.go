@@ -40,42 +40,46 @@ func (c *Cache) ServeDNS(ctx context.Context, w MessageWriter, r *Query) {
 
 // c.mu.RLock held
 func (c *Cache) lookup(q Question, w MessageWriter, now time.Time) bool {
-	var hit bool
-
 	msg, ok := c.cache[q]
 	if !ok {
 		return false
 	}
 
-	for _, res := range msg.Answers {
-		ttl := cacheTTL(res.TTL, now)
-		if res.Name != q.Name || ttl <= 0 {
-			continue
-		}
-		hit = true
+	var answers, authorities, additionals []Resource
 
-		w.Answer(q.Name, ttl, res.Record)
+	for _, res := range msg.Answers {
+		if res.TTL = cacheTTL(res.TTL, now); res.TTL <= 0 {
+			return false
+		}
+
+		answers = append(answers, res)
 	}
 	for _, res := range msg.Authorities {
-		ttl := cacheTTL(res.TTL, now)
-		if res.Name != q.Name || ttl <= 0 {
-			continue
+		if res.TTL = cacheTTL(res.TTL, now); res.TTL <= 0 {
+			return false
 		}
-		hit = true
 
-		w.Authority(q.Name, ttl, res.Record)
+		authorities = append(authorities, res)
 	}
 	for _, res := range msg.Additionals {
-		ttl := cacheTTL(res.TTL, now)
-		if res.Name != q.Name || ttl <= 0 {
-			continue
+		if res.TTL = cacheTTL(res.TTL, now); res.TTL <= 0 {
+			return false
 		}
-		hit = true
 
-		w.Additional(q.Name, ttl, res.Record)
+		additionals = append(additionals, res)
 	}
 
-	return hit
+	for _, res := range answers {
+		w.Answer(res.Name, res.TTL, res.Record)
+	}
+	for _, res := range answers {
+		w.Authority(res.Name, res.TTL, res.Record)
+	}
+	for _, res := range answers {
+		w.Additional(res.Name, res.TTL, res.Record)
+	}
+
+	return true
 }
 
 func (c *Cache) insert(msg *Message, now time.Time) {
@@ -83,26 +87,14 @@ func (c *Cache) insert(msg *Message, now time.Time) {
 	for _, q := range msg.Questions {
 		m := new(Message)
 		for _, res := range msg.Answers {
-			if res.Name != q.Name {
-				continue
-			}
-
 			res.TTL = cacheEpoch(res.TTL, now)
 			m.Answers = append(m.Answers, res)
 		}
 		for _, res := range msg.Authorities {
-			if res.Name != q.Name {
-				continue
-			}
-
 			res.TTL = cacheEpoch(res.TTL, now)
 			m.Authorities = append(m.Authorities, res)
 		}
 		for _, res := range msg.Additionals {
-			if res.Name != q.Name {
-				continue
-			}
-
 			res.TTL = cacheEpoch(res.TTL, now)
 			m.Additionals = append(m.Additionals, res)
 		}
