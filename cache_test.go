@@ -2,6 +2,7 @@ package dns
 
 import (
 	"context"
+	"math/rand"
 	"net"
 	"testing"
 	"time"
@@ -68,6 +69,7 @@ func TestCacheMultiAnswer(t *testing.T) {
 		w.Answer("test.local.", 30*time.Second, &CNAME{CNAME: "cname.test.local."})
 		w.Answer("cname.test.local.", time.Minute, &A{A: net.IPv4(127, 0, 1, 1).To4()})
 		w.Answer("cname.test.local.", time.Minute, &A{A: net.IPv4(127, 0, 2, 1).To4()})
+		w.Answer("cname.test.local.", time.Minute, &A{A: net.IPv4(127, 0, 3, 1).To4()})
 
 		answered = true
 	}))
@@ -91,7 +93,7 @@ func TestCacheMultiAnswer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if want, got := 3, len(msg.Answers); want != got {
+	if want, got := 4, len(msg.Answers); want != got {
 		t.Fatal("want %d answers, got %d", want, got)
 	}
 	if want, got := "cname.test.local.", msg.Answers[0].Record.(*CNAME).CNAME; want != got {
@@ -103,12 +105,17 @@ func TestCacheMultiAnswer(t *testing.T) {
 	if want, got := "127.0.2.1", msg.Answers[2].Record.(*A).A.String(); want != got {
 		t.Errorf("want A record %q, got %q", want, got)
 	}
+	if want, got := "127.0.3.1", msg.Answers[3].Record.(*A).A.String(); want != got {
+		t.Errorf("want A record %q, got %q", want, got)
+	}
+
+	rand.Seed(0) // record order: 4 2 3 1
 
 	if msg, err = client.Do(context.Background(), query); err != nil {
 		t.Fatal(err)
 	}
 
-	if want, got := 3, len(msg.Answers); want != got {
+	if want, got := 4, len(msg.Answers); want != got {
 		t.Fatal("want %d answers, got %d", want, got)
 	}
 	if want, got := "cname.test.local.", msg.Answers[0].Record.(*CNAME).CNAME; want != got {
@@ -117,7 +124,10 @@ func TestCacheMultiAnswer(t *testing.T) {
 	if want, got := "127.0.1.1", msg.Answers[1].Record.(*A).A.String(); want != got {
 		t.Errorf("want A record %q, got %q", want, got)
 	}
-	if want, got := "127.0.2.1", msg.Answers[2].Record.(*A).A.String(); want != got {
+	if want, got := "127.0.2.1", msg.Answers[3].Record.(*A).A.String(); want != got {
+		t.Errorf("want A record %q, got %q", want, got)
+	}
+	if want, got := "127.0.3.1", msg.Answers[2].Record.(*A).A.String(); want != got {
 		t.Errorf("want A record %q, got %q", want, got)
 	}
 }

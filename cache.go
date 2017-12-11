@@ -2,6 +2,7 @@ package dns
 
 import (
 	"context"
+	"math/rand"
 	"sync"
 	"time"
 )
@@ -69,13 +70,14 @@ func (c *Cache) lookup(q Question, w MessageWriter, now time.Time) bool {
 		additionals = append(additionals, res)
 	}
 
+	randomize(answers)
 	for _, res := range answers {
 		w.Answer(res.Name, res.TTL, res.Record)
 	}
-	for _, res := range answers {
+	for _, res := range authorities {
 		w.Authority(res.Name, res.TTL, res.Record)
 	}
-	for _, res := range answers {
+	for _, res := range additionals {
 		w.Additional(res.Name, res.TTL, res.Record)
 	}
 
@@ -121,4 +123,27 @@ func cacheEpoch(ttl time.Duration, now time.Time) time.Duration {
 
 func cacheTTL(epoch time.Duration, now time.Time) time.Duration {
 	return time.Unix(0, int64(epoch)).Sub(now)
+}
+
+// randomize shuffles contigous groups of resourcesfor the same name.
+func randomize(s []Resource) {
+	var low, high int
+	for low = 0; low < len(s)-1; low++ {
+		for high = low + 1; high < len(s) && s[low].Name == s[high].Name; high++ {
+		}
+
+		shuffle(s[low:high])
+		low = high
+	}
+}
+
+func shuffle(s []Resource) {
+	if len(s) < 2 {
+		return
+	}
+
+	for i := len(s) - 1; i > 0; i-- {
+		j := rand.Intn(i + 1)
+		s[i], s[j] = s[j], s[i]
+	}
 }
