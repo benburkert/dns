@@ -10,35 +10,16 @@ import (
 	"sync"
 )
 
-// Handler responds to a DNS query.
-//
-// ServeDNS should build the reply message using the MessageWriter, and may
-// optionally call the Reply method. Returning signals that the request is
-// finished and the response is ready to send.
-//
-// A recursive handler may call the Recur method of the MessageWriter to send
-// an query upstream. Only unanswered questions are included in the upstream
-// query.
-type Handler interface {
-	ServeDNS(context.Context, MessageWriter, *Query)
-}
-
-// The HandlerFunc type is an adapter to allow the use of ordinary functions as
-// DNS handlers. If f is a function with the appropriate signature,
-// HandlerFunc(f) is a Handler that calls f.
-type HandlerFunc func(context.Context, MessageWriter, *Query)
-
-// ServeDNS calls f(w, r).
-func (f HandlerFunc) ServeDNS(ctx context.Context, w MessageWriter, r *Query) {
-	f(ctx, w, r)
-}
-
 // A Server defines parameters for running a DNS server. The zero value for
 // Server is a valid configuration.
 type Server struct {
 	Addr      string      // TCP and UDP address to listen on, ":domain" if empty
 	Handler   Handler     // handler to invoke
 	TLSConfig *tls.Config // optional TLS config, used by ListenAndServeTLS
+
+	// Forwarder relays a recursive query. If nil, recursive queries are
+	// answered with a "Query Refused" message.
+	Forwarder RoundTripper
 
 	// ErrorLog specifies an optional logger for errors accepting connections,
 	// reading data, and unpacking messages.
@@ -237,7 +218,11 @@ func (s *Server) serveStream(ctx context.Context, conn net.Conn) {
 }
 
 func (s *Server) handle(ctx context.Context, w MessageWriter, r *Query) {
-	sw := &serverWriter{MessageWriter: w}
+	sw := &serverWriter{
+		MessageWriter: w,
+		forwarder:     s.Forwarder,
+		query:         r,
+	}
 
 	s.Handler.ServeDNS(ctx, sw, r)
 
@@ -333,7 +318,32 @@ func (w streamWriter) Reply(ctx context.Context) error {
 type serverWriter struct {
 	MessageWriter
 
+	forwarder RoundTripper
+	query     *Query
+
 	replied bool
+}
+
+func (w serverWriter) Recur(ctx context.Context) (*Message, error) {
+	query := &Query{
+		RemoteAddr: w.query.RemoteAddr,
+		Message:    request(w.query.Message),
+	}
+
+	qs := make([]Question, 0, len(w.query.Questions))
+	for _, q := range w.query.Questions {
+		if !questionMatched(q, query.Message) {
+			qs = append(qs, q)
+		}
+	}
+	query.Questions = qs
+
+	msg, err := w.forward(ctx, query)
+	if msg != nil {
+		writeMessage(w, msg)
+	}
+
+	return msg, err
 }
 
 func (w serverWriter) Reply(ctx context.Context) error {
@@ -349,4 +359,16 @@ func response(msg *Message) *Message {
 	res.Response = true
 
 	return res
+}
+
+var refuser = &Client{
+	Resolver: HandlerFunc(Refuse),
+}
+
+func (w serverWriter) forward(ctx context.Context, query *Query) (*Message, error) {
+	if w.forwarder != nil {
+		return w.forwarder.Do(ctx, query)
+	}
+
+	return refuser.Do(ctx, query)
 }

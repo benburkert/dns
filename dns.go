@@ -52,3 +52,9 @@ func (a OverTLSAddr) Network() string {
 
 // ProxyFunc modifies the address of a DNS server.
 type ProxyFunc func(context.Context, net.Addr) (net.Addr, error)
+
+// RoundTripper is an interface representing the ability to execute a single
+// DNS transaction, obtaining a response Message for a given Query.
+type RoundTripper interface {
+	Do(context.Context, *Query) (*Message, error)
+}

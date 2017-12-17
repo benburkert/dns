@@ -115,11 +115,90 @@ func TestServerMessageTruncation(t *testing.T) {
 	}
 }
 
+func TestServerForward(t *testing.T) {
+	t.Run("nil forwarder", func(t *testing.T) {
+		t.Parallel()
+
+		srv := mustServer(HandlerFunc(func(ctx context.Context, w MessageWriter, r *Query) {
+			w.Recur(ctx)
+		}))
+
+		addrUDP, err := net.ResolveUDPAddr("udp", srv.Addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		query := &Query{
+			RemoteAddr: addrUDP,
+			Message: &Message{
+				Questions: []Question{
+					{Name: "test.local.", Type: TypeA},
+				},
+			},
+		}
+
+		msg, err := new(Client).Do(context.Background(), query)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want, got := Refused, msg.RCode; want != got {
+			t.Errorf("want rcode %d, got %d", want, got)
+		}
+	})
+
+	t.Run("test local forwarder", func(t *testing.T) {
+		t.Parallel()
+
+		localhost := net.IPv4(127, 0, 0, 1).To4()
+
+		srv := &Server{
+			Addr: mustUnusedAddr(),
+			Handler: HandlerFunc(func(ctx context.Context, w MessageWriter, r *Query) {
+				w.Recur(ctx)
+			}),
+			Forwarder: &Client{
+				Resolver: HandlerFunc(func(ctx context.Context, w MessageWriter, r *Query) {
+					w.Answer("test.local.", time.Minute, &A{A: localhost})
+				}),
+			},
+		}
+		mustStart(srv)
+
+		addrUDP, err := net.ResolveUDPAddr("udp", srv.Addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		query := &Query{
+			RemoteAddr: addrUDP,
+			Message: &Message{
+				Questions: []Question{
+					{Name: "test.local.", Type: TypeA},
+				},
+			},
+		}
+
+		msg, err := new(Client).Do(context.Background(), query)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want, got := localhost, msg.Answers[0].Record.(*A).A; !want.Equal(got) {
+			t.Errorf("want A record %q, got %q", want, got)
+		}
+	})
+}
+
 func mustServer(handler Handler) *Server {
 	srv := &Server{
 		Addr:    mustUnusedAddr(),
 		Handler: handler,
 	}
+
+	mustStart(srv)
+	return srv
+}
+
+func mustStart(srv *Server) {
 
 	ln, err := net.Listen("tcp", srv.Addr)
 	if err != nil {
@@ -133,8 +212,6 @@ func mustServer(handler Handler) *Server {
 
 	go srv.Serve(context.Background(), ln)
 	go srv.ServePacket(context.Background(), conn)
-
-	return srv
 }
 
 func mustUnusedAddr() string {
