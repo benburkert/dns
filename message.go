@@ -45,6 +45,8 @@ const (
 	TypeAXFR  Type = 252 // [RFC1035][RFC5936] transfer of an entire zone
 	TypeALL   Type = 255 // [RFC1035][RFC6895] A request for all records the server/cache has available
 
+	TypeANY Type = 0
+
 	// DNS CLASSes
 	ClassIN  Class = 1   // [RFC1035] Internet (IN)
 	ClassCH  Class = 3   // [] Chaos (CH)
