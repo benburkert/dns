@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -25,25 +26,16 @@ func TestLookupHost(t *testing.T) {
 
 			host: "localhost.dev",
 
-			addrs: []string{"::1", "127.0.0.1"},
+			addrs: []string{"127.0.0.1", "::1"},
 		},
 	}
 
-	srv := mustServer(&answerHandler{
-		Answers: map[Question]Record{
-			{
-				Name:  "localhost.dev.",
-				Type:  TypeA,
-				Class: ClassIN,
-			}: &A{
-				A: net.IPv4(127, 0, 0, 1),
-			},
-			{
-				Name:  "localhost.dev.",
-				Type:  TypeAAAA,
-				Class: ClassIN,
-			}: &AAAA{
-				AAAA: net.ParseIP("::1"),
+	srv := mustServer(&Zone{
+		Origin: "dev.",
+		RRs: map[string][]Record{
+			"localhost": []Record{
+				&A{A: net.IPv4(127, 0, 0, 1)},
+				&AAAA{AAAA: net.ParseIP("::1")},
 			},
 		},
 	})
@@ -74,6 +66,7 @@ func TestLookupHost(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			sort.Strings(addrs)
 
 			if want, got := test.addrs, addrs; !reflect.DeepEqual(want, got) {
 				t.Errorf("want LookupHost addrs %q, got %q", want, got)
