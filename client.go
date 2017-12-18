@@ -171,7 +171,6 @@ func (w *clientWriter) Recur(context.Context) (*Message, error) {
 		w.err = err
 	}
 
-	writeMessage(w, msg)
 	return msg, err
 }
 
@@ -206,6 +205,9 @@ func questionMatched(q Question, msg *Message) bool {
 
 func writeMessage(w MessageWriter, msg *Message) {
 	w.Status(msg.RCode)
+	w.Authoritative(msg.Authoritative)
+	w.Recursion(msg.RecursionAvailable)
+
 	for _, res := range msg.Answers {
 		w.Answer(res.Name, res.TTL, res.Record)
 	}

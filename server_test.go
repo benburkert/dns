@@ -119,9 +119,7 @@ func TestServerForward(t *testing.T) {
 	t.Run("nil forwarder", func(t *testing.T) {
 		t.Parallel()
 
-		srv := mustServer(HandlerFunc(func(ctx context.Context, w MessageWriter, r *Query) {
-			w.Recur(ctx)
-		}))
+		srv := mustServer(HandlerFunc(Recursor))
 
 		addrUDP, err := net.ResolveUDPAddr("udp", srv.Addr)
 		if err != nil {
@@ -152,11 +150,10 @@ func TestServerForward(t *testing.T) {
 		localhost := net.IPv4(127, 0, 0, 1).To4()
 
 		srv := &Server{
-			Addr: mustUnusedAddr(),
-			Handler: HandlerFunc(func(ctx context.Context, w MessageWriter, r *Query) {
-				w.Recur(ctx)
-			}),
+			Addr:    mustUnusedAddr(),
+			Handler: HandlerFunc(Recursor),
 			Forwarder: &Client{
+				Transport: nopDialer{},
 				Resolver: HandlerFunc(func(ctx context.Context, w MessageWriter, r *Query) {
 					w.Answer("test.local.", time.Minute, &A{A: localhost})
 				}),

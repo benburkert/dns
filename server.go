@@ -326,8 +326,7 @@ type serverWriter struct {
 
 func (w serverWriter) Recur(ctx context.Context) (*Message, error) {
 	query := &Query{
-		RemoteAddr: w.query.RemoteAddr,
-		Message:    request(w.query.Message),
+		Message: request(w.query.Message),
 	}
 
 	qs := make([]Question, 0, len(w.query.Questions))
@@ -338,12 +337,7 @@ func (w serverWriter) Recur(ctx context.Context) (*Message, error) {
 	}
 	query.Questions = qs
 
-	msg, err := w.forward(ctx, query)
-	if msg != nil {
-		writeMessage(w, msg)
-	}
-
-	return msg, err
+	return w.forward(ctx, query)
 }
 
 func (w serverWriter) Reply(ctx context.Context) error {
@@ -362,7 +356,8 @@ func response(msg *Message) *Message {
 }
 
 var refuser = &Client{
-	Resolver: HandlerFunc(Refuse),
+	Transport: nopDialer{},
+	Resolver:  HandlerFunc(Refuse),
 }
 
 func (w serverWriter) forward(ctx context.Context, query *Query) (*Message, error) {
@@ -371,4 +366,10 @@ func (w serverWriter) forward(ctx context.Context, query *Query) (*Message, erro
 	}
 
 	return refuser.Do(ctx, query)
+}
+
+type nopDialer struct{}
+
+func (nopDialer) DialAddr(ctx context.Context, addr net.Addr) (Conn, error) {
+	return nil, nil
 }

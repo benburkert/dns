@@ -92,8 +92,13 @@ func TestClientResolver(t *testing.T) {
 		Resolver: HandlerFunc(func(ctx context.Context, w MessageWriter, r *Query) {
 			fqdn := r.Questions[0].Name
 			if !strings.HasSuffix(fqdn, ".local.") {
-				w.Recur(ctx)
-				return
+				msg, err := w.Recur(ctx)
+				if err != nil {
+					w.Status(ServFail)
+					return
+				}
+
+				writeMessage(w, msg)
 			}
 
 			w.Answer(fqdn, time.Minute, &A{A: localhost})

@@ -34,9 +34,11 @@ func (c *Cache) ServeDNS(ctx context.Context, w MessageWriter, r *Query) {
 		return
 	}
 
-	if msg, err := w.Recur(ctx); err == nil && msg.RCode == NoError {
+	msg, err := w.Recur(ctx)
+	if err == nil && msg.RCode == NoError {
 		c.insert(msg, now)
 	}
+	writeMessage(w, msg)
 }
 
 // c.mu.RLock held

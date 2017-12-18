@@ -28,6 +28,17 @@ func (f HandlerFunc) ServeDNS(ctx context.Context, w MessageWriter, r *Query) {
 	f(ctx, w, r)
 }
 
+// Recursor forwards a query and copies the response.
+func Recursor(ctx context.Context, w MessageWriter, r *Query) {
+	msg, err := w.Recur(ctx)
+	if err != nil {
+		w.Status(ServFail)
+		return
+	}
+
+	writeMessage(w, msg)
+}
+
 // Refuse responds to all queries with a "Query Refused" message.
 func Refuse(ctx context.Context, w MessageWriter, r *Query) {
 	w.Status(Refused)
@@ -167,8 +178,6 @@ func (w muxWriter) Recur(ctx context.Context) (*Message, error) {
 }
 
 func (w muxWriter) Reply(ctx context.Context) error {
-	close(w.recurc)
-
 	msg := response(w.msg)
 	if w.next != nil {
 		if me, ok := <-w.next.recurc; ok {
@@ -183,6 +192,7 @@ func (w muxWriter) Reply(ctx context.Context) error {
 		}
 		mergeResponses(msg, me.msg)
 	}
+	close(w.recurc)
 	w.replyc <- msgerr{msg, nil}
 
 	me := <-w.replyc
