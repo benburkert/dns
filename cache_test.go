@@ -94,7 +94,7 @@ func TestCacheMultiAnswer(t *testing.T) {
 	}
 
 	if want, got := 4, len(msg.Answers); want != got {
-		t.Fatal("want %d answers, got %d", want, got)
+		t.Fatalf("want %d answers, got %d", want, got)
 	}
 	if want, got := "cname.test.local.", msg.Answers[0].Record.(*CNAME).CNAME; want != got {
 		t.Errorf("want CNAME record %q, got %q", want, got)
@@ -116,7 +116,7 @@ func TestCacheMultiAnswer(t *testing.T) {
 	}
 
 	if want, got := 4, len(msg.Answers); want != got {
-		t.Fatal("want %d answers, got %d", want, got)
+		t.Fatalf("want %d answers, got %d", want, got)
 	}
 	if want, got := "cname.test.local.", msg.Answers[0].Record.(*CNAME).CNAME; want != got {
 		t.Errorf("want CNAME record %q, got %q", want, got)
