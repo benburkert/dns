@@ -16,19 +16,19 @@ var localhostZone = &Zone{
 		MBox: "hostmaster.localhost.",
 	},
 	RRs: map[string][]Record{
-		"1.app": []Record{
+		"1.app": {
 			&A{net.IPv4(10, 42, 0, 1).To4()},
 			&AAAA{net.ParseIP("dead:beef::1")},
 		},
-		"2.app": []Record{
+		"2.app": {
 			&A{net.IPv4(10, 42, 0, 2).To4()},
 			&AAAA{net.ParseIP("dead:beef::2")},
 		},
-		"3.app": []Record{
+		"3.app": {
 			&A{net.IPv4(10, 42, 0, 3).To4()},
 			&AAAA{net.ParseIP("dead:beef::3")},
 		},
-		"app": []Record{
+		"app": {
 			&A{net.IPv4(10, 42, 0, 1).To4()},
 			&A{net.IPv4(10, 42, 0, 2).To4()},
 			&A{net.IPv4(10, 42, 0, 3).To4()},

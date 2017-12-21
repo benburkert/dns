@@ -15,7 +15,7 @@ func TestResolveMux(t *testing.T) {
 		Origin: "mx.",
 		TTL:    24 * time.Hour,
 		RRs: map[string][]Record{
-			"foo": []Record{
+			"foo": {
 				&MX{
 					Pref: 101,
 					MX:   "a.foo.mx.",
@@ -25,7 +25,7 @@ func TestResolveMux(t *testing.T) {
 					MX:   "b.foo.mx.",
 				},
 			},
-			"bar": []Record{
+			"bar": {
 				&MX{
 					Pref: 101,
 					MX:   "a.bar.mx.",

@@ -71,19 +71,19 @@ func ExampleServer_authoritative() {
 			Serial: 1234,
 		},
 		RRs: map[string][]dns.Record{
-			"1.app": []dns.Record{
+			"1.app": {
 				&dns.A{A: net.IPv4(10, 42, 0, 1).To4()},
 				&dns.AAAA{AAAA: net.ParseIP("dead:beef::1")},
 			},
-			"2.app": []dns.Record{
+			"2.app": {
 				&dns.A{A: net.IPv4(10, 42, 0, 2).To4()},
 				&dns.AAAA{AAAA: net.ParseIP("dead:beef::2")},
 			},
-			"3.app": []dns.Record{
+			"3.app": {
 				&dns.A{A: net.IPv4(10, 42, 0, 3).To4()},
 				&dns.AAAA{AAAA: net.ParseIP("dead:beef::3")},
 			},
-			"app": []dns.Record{
+			"app": {
 				&dns.A{A: net.IPv4(10, 42, 0, 1).To4()},
 				&dns.A{A: net.IPv4(10, 42, 0, 2).To4()},
 				&dns.A{A: net.IPv4(10, 42, 0, 3).To4()},
@@ -111,12 +111,12 @@ func ExampleServer_authoritative() {
 		RemoteAddr: addr,
 		Message: &dns.Message{
 			Questions: []dns.Question{
-				dns.Question{
+				{
 					Name:  "app.tld.",
 					Type:  dns.TypeA,
 					Class: dns.ClassIN,
 				},
-				dns.Question{
+				{
 					Name:  "app.tld.",
 					Type:  dns.TypeAAAA,
 					Class: dns.ClassIN,
@@ -177,7 +177,7 @@ func ExampleServer_recursive() {
 		Message: &dns.Message{
 			RecursionDesired: true,
 			Questions: []dns.Question{
-				dns.Question{
+				{
 					Name:  "127.1.2.3.xip.io.",
 					Type:  dns.TypeA,
 					Class: dns.ClassIN,
@@ -207,7 +207,7 @@ func ExampleServer_recursiveWithZone() {
 	customTLD := &dns.Zone{
 		Origin: "tld.",
 		RRs: map[string][]dns.Record{
-			"foo": []dns.Record{
+			"foo": {
 				&dns.A{A: net.IPv4(127, 0, 0, 1).To4()},
 			},
 		},
@@ -243,12 +243,12 @@ func ExampleServer_recursiveWithZone() {
 		Message: &dns.Message{
 			RecursionDesired: true,
 			Questions: []dns.Question{
-				dns.Question{
+				{
 					Name:  "127.0.0.127.xip.io.",
 					Type:  dns.TypeA,
 					Class: dns.ClassIN,
 				},
-				dns.Question{
+				{
 					Name:  "foo.tld.",
 					Type:  dns.TypeA,
 					Class: dns.ClassIN,
