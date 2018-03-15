@@ -35,7 +35,11 @@ func (c *Cache) ServeDNS(ctx context.Context, w MessageWriter, r *Query) {
 	}
 
 	msg, err := w.Recur(ctx)
-	if err == nil && msg.RCode == NoError {
+	if err != nil || msg == nil {
+		w.Status(ServFail)
+		return
+	}
+	if msg.RCode == NoError {
 		c.insert(msg, now)
 	}
 	writeMessage(w, msg)
