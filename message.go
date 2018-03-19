@@ -403,7 +403,7 @@ func (r *Resource) Unpack(b []byte, dec Decompressor) ([]byte, error) {
 		return nil, err
 	}
 
-	if len(b) < 4 {
+	if len(b) < 10 {
 		return nil, errResourceLen
 	}
 
