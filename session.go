@@ -7,10 +7,10 @@ import (
 )
 
 type packetSession struct {
-	*session
+	session
 }
 
-func (s packetSession) Read(b []byte) (int, error) {
+func (s *packetSession) Read(b []byte) (int, error) {
 	msg, err := s.recv()
 	if err != nil {
 		return 0, err
@@ -26,12 +26,12 @@ func (s packetSession) Read(b []byte) (int, error) {
 	return len(buf), nil
 }
 
-func (s packetSession) ReadFrom(b []byte) (int, net.Addr, error) {
+func (s *packetSession) ReadFrom(b []byte) (int, net.Addr, error) {
 	n, err := s.Read(b)
 	return n, s.addr, err
 }
 
-func (s packetSession) Write(b []byte) (int, error) {
+func (s *packetSession) Write(b []byte) (int, error) {
 	msg := new(Message)
 	if _, err := msg.Unpack(b); err != nil {
 		return 0, err
@@ -47,17 +47,17 @@ func (s packetSession) Write(b []byte) (int, error) {
 	return len(b), nil
 }
 
-func (s packetSession) WriteTo(b []byte, addr net.Addr) (int, error) {
+func (s *packetSession) WriteTo(b []byte, addr net.Addr) (int, error) {
 	return s.Write(b)
 }
 
 type streamSession struct {
-	*session
+	session
 
 	rbuf []byte
 }
 
-func (s streamSession) Read(b []byte) (int, error) {
+func (s *streamSession) Read(b []byte) (int, error) {
 	if len(s.rbuf) > 0 {
 		return s.read(b)
 	}
@@ -85,7 +85,7 @@ func (s streamSession) Read(b []byte) (int, error) {
 	return 2 + n, err
 }
 
-func (s streamSession) read(b []byte) (int, error) {
+func (s *streamSession) read(b []byte) (int, error) {
 	if len(s.rbuf) > len(b) {
 		copy(b, s.rbuf[:len(b)])
 		s.rbuf = s.rbuf[len(b):]
@@ -140,12 +140,12 @@ type msgerr struct {
 	err error
 }
 
-func (s *session) do(query *Query) {
+func (s session) do(query *Query) {
 	msg, err := s.client.do(context.Background(), s.Conn, query)
 	s.msgerrc <- msgerr{msg, err}
 }
 
-func (s *session) recv() (*Message, error) {
+func (s session) recv() (*Message, error) {
 	me, ok := <-s.msgerrc
 	if !ok {
 		panic("impossible")
