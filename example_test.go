@@ -156,6 +156,8 @@ func ExampleServer_recursive() {
 		Forwarder: &dns.Client{
 			Transport: &dns.Transport{
 				Proxy: dns.NameServers{
+					&net.TCPAddr{IP: net.IPv4(8, 8, 8, 8), Port: 53},
+					&net.TCPAddr{IP: net.IPv4(8, 8, 4, 4), Port: 53},
 					&net.UDPAddr{IP: net.IPv4(8, 8, 8, 8), Port: 53},
 					&net.UDPAddr{IP: net.IPv4(8, 8, 4, 4), Port: 53},
 				}.RoundRobin(),
@@ -222,7 +224,9 @@ func ExampleServer_recursiveWithZone() {
 		Forwarder: &dns.Client{
 			Transport: &dns.Transport{
 				Proxy: dns.NameServers{
-					&net.UDPAddr{IP: net.IPv4(8, 8, 8, 8), Port: 53},
+					&net.TCPAddr{IP: net.IPv4(8, 8, 8, 8), Port: 53},
+					&net.TCPAddr{IP: net.IPv4(8, 8, 8, 8), Port: 53},
+					&net.UDPAddr{IP: net.IPv4(8, 8, 4, 4), Port: 53},
 					&net.UDPAddr{IP: net.IPv4(8, 8, 4, 4), Port: 53},
 				}.RoundRobin(),
 			},

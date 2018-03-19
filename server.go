@@ -320,7 +320,8 @@ type serverWriter struct {
 
 func (w serverWriter) Recur(ctx context.Context) (*Message, error) {
 	query := &Query{
-		Message: request(w.query.Message),
+		Message:    request(w.query.Message),
+		RemoteAddr: w.query.RemoteAddr,
 	}
 
 	qs := make([]Question, 0, len(w.query.Questions))
