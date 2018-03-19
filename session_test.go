@@ -6,6 +6,66 @@ import (
 	"testing"
 )
 
+func TestPacketSession(t *testing.T) {
+	t.Parallel()
+
+	srv := mustServer(localhostZone)
+
+	addr, err := net.ResolveTCPAddr("tcp", srv.Addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	conn, err := new(Transport).DialAddr(context.Background(), addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ps := &packetSession{
+		session: session{
+			Conn:    conn,
+			addr:    addr,
+			client:  new(Client),
+			msgerrc: make(chan msgerr),
+		},
+	}
+
+	msg := new(Message)
+	for i := 0; i < 120; i++ {
+		q := Question{
+			Name:  "app.localhost.",
+			Type:  TypeA,
+			Class: ClassIN,
+		}
+
+		msg.Questions = append(msg.Questions, q)
+	}
+
+	buf, err := msg.Pack(nil, true)
+	if _, err := ps.Write(buf); err != nil {
+		t.Fatal(err)
+	}
+
+	// test truncate due to short buffer size
+
+	if _, err := ps.Write(buf); err != nil {
+		t.Fatal(err)
+	}
+
+	buf = make([]byte, 100)
+	if _, err := ps.Read(buf); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = msg.Unpack(buf)
+	if want, got := errResourceLen, err; want != got {
+		t.Fatalf("want %v error, got %v", want, got)
+	}
+	if want, got := true, msg.Truncated; want != got {
+		t.Errorf("response message was not truncated")
+	}
+}
+
 func TestStreamSession(t *testing.T) {
 	t.Parallel()
 
@@ -65,5 +125,8 @@ func TestStreamSession(t *testing.T) {
 
 	if buf, err = msg.Unpack(buf); err != nil {
 		t.Fatal(err)
+	}
+	if want, got := 0, len(buf); want != got {
+		t.Errorf("want %d extra buffer bytes, got %d", want, got)
 	}
 }

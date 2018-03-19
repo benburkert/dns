@@ -268,14 +268,8 @@ func (w packetWriter) Reply(ctx context.Context) error {
 }
 
 func (w packetWriter) truncate(buf []byte) error {
-	msg := new(Message)
-	if _, err := msg.Unpack(buf[:maxPacketLen]); err != nil && err != errResourceLen {
-		return err
-	}
-	msg.Truncated = true
-
 	var err error
-	if buf, err = msg.Pack(buf[:0], true); err != nil {
+	if buf, err = truncate(buf, maxPacketLen); err != nil {
 		return err
 	}
 

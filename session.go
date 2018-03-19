@@ -18,10 +18,15 @@ func (s *packetSession) Read(b []byte) (int, error) {
 
 	buf, err := msg.Pack(b[:0:len(b)], true)
 	if err != nil {
-		return len(buf), err
+		return 0, err
 	}
 	if len(buf) > len(b) {
-		return len(buf), io.ErrShortBuffer
+		if buf, err = truncate(buf, len(b)); err != nil {
+			return 0, err
+		}
+
+		copy(b, buf)
+		return len(buf), nil
 	}
 	return len(buf), nil
 }
@@ -151,4 +156,16 @@ func (s session) recv() (*Message, error) {
 		panic("impossible")
 	}
 	return me.msg, me.err
+}
+
+func truncate(buf []byte, maxPacketLength int) ([]byte, error) {
+	msg := new(Message)
+	if _, err := msg.Unpack(buf[:maxPacketLen]); err != nil {
+		if err != errResourceLen && err != errBaseLen {
+			return nil, err
+		}
+	}
+	msg.Truncated = true
+
+	return msg.Pack(buf[:0], true)
 }
