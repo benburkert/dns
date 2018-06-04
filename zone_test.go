@@ -52,6 +52,11 @@ var localhostZone = &Zone{
 				&AAAA{net.ParseIP("dead:beef::3")},
 			},
 		},
+		"cname": {
+			TypeA: {
+				&CNAME{CNAME: "app.localhost."},
+			},
+		},
 	},
 }
 
@@ -125,4 +130,33 @@ func TestZone(t *testing.T) {
 		t.Errorf("want SOA record %+v, got %+v", *want, *got)
 	}
 
+	// test recursive query + cname
+
+	q.Message = &Message{
+		RecursionDesired: true,
+		Questions: []Question{
+			{
+				Name:  "cname.localhost.",
+				Type:  TypeA,
+				Class: ClassIN,
+			},
+		},
+	}
+
+	if res, err = client.Do(context.Background(), q); err != nil {
+		t.Fatal(err)
+	}
+
+	if want, got := 4, len(res.Answers); want != got {
+		t.Errorf("want %d answers, got %d", want, got)
+	}
+	if want, got := localhostZone.RRs["cname"][TypeA][0].(*CNAME), res.Answers[0].Record.(*CNAME); !reflect.DeepEqual(*want, *got) {
+		t.Fatalf("want %+v record, got %+v", want, got)
+	}
+	for i, answer := range res.Answers[1:] {
+		rec := localhostZone.RRs["app"][TypeA][i]
+		if want, got := rec.(*A), answer.Record.(*A); !reflect.DeepEqual(*want, *got) {
+			t.Errorf("want answer record %+v, got %+v", *want, *got)
+		}
+	}
 }

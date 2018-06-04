@@ -39,6 +39,17 @@ func (z *Zone) ServeDNS(ctx context.Context, w MessageWriter, r *Query) {
 		for _, rr := range rrs[q.Type] {
 			w.Answer(q.Name, z.TTL, rr)
 			found = true
+
+			if r.RecursionDesired && rr.Type() == TypeCNAME {
+				name := rr.(*CNAME).CNAME
+				dn := name[:len(name)-len(z.Origin)-1]
+
+				if rrs, ok := z.RRs[dn]; ok {
+					for _, rr := range rrs[q.Type] {
+						w.Answer(name, z.TTL, rr)
+					}
+				}
+			}
 		}
 	}
 
