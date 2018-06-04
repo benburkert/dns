@@ -15,26 +15,42 @@ var localhostZone = &Zone{
 		NS:   "dns.localhost.",
 		MBox: "hostmaster.localhost.",
 	},
-	RRs: map[string][]Record{
+	RRs: RRSet{
 		"1.app": {
-			&A{net.IPv4(10, 42, 0, 1).To4()},
-			&AAAA{net.ParseIP("dead:beef::1")},
+			TypeA: {
+				&A{net.IPv4(10, 42, 0, 1).To4()},
+			},
+			TypeAAAA: {
+				&AAAA{net.ParseIP("dead:beef::1")},
+			},
 		},
 		"2.app": {
-			&A{net.IPv4(10, 42, 0, 2).To4()},
-			&AAAA{net.ParseIP("dead:beef::2")},
+			TypeA: {
+				&A{net.IPv4(10, 42, 0, 2).To4()},
+			},
+			TypeAAAA: {
+				&AAAA{net.ParseIP("dead:beef::2")},
+			},
 		},
 		"3.app": {
-			&A{net.IPv4(10, 42, 0, 3).To4()},
-			&AAAA{net.ParseIP("dead:beef::3")},
+			TypeA: {
+				&A{net.IPv4(10, 42, 0, 3).To4()},
+			},
+			TypeAAAA: {
+				&AAAA{net.ParseIP("dead:beef::3")},
+			},
 		},
 		"app": {
-			&A{net.IPv4(10, 42, 0, 1).To4()},
-			&A{net.IPv4(10, 42, 0, 2).To4()},
-			&A{net.IPv4(10, 42, 0, 3).To4()},
-			&AAAA{net.ParseIP("dead:beef::1")},
-			&AAAA{net.ParseIP("dead:beef::2")},
-			&AAAA{net.ParseIP("dead:beef::3")},
+			TypeA: {
+				&A{net.IPv4(10, 42, 0, 1).To4()},
+				&A{net.IPv4(10, 42, 0, 2).To4()},
+				&A{net.IPv4(10, 42, 0, 3).To4()},
+			},
+			TypeAAAA: {
+				&AAAA{net.ParseIP("dead:beef::1")},
+				&AAAA{net.ParseIP("dead:beef::2")},
+				&AAAA{net.ParseIP("dead:beef::3")},
+			},
 		},
 	},
 }
@@ -74,7 +90,7 @@ func TestZone(t *testing.T) {
 	}
 
 	for i, answer := range res.Answers {
-		rec := localhostZone.RRs["app"][i]
+		rec := localhostZone.RRs["app"][TypeA][i]
 		if want, got := rec.(*A), answer.Record.(*A); !reflect.DeepEqual(*want, *got) {
 			t.Errorf("want answer record %+v, got %+v", *want, *got)
 		}

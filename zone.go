@@ -6,6 +6,9 @@ import (
 	"time"
 )
 
+// RRSet is a set of resource records indexed by name and type.
+type RRSet map[string]map[Type][]Record
+
 // Zone is a contiguous set DNS records under an origin domain name.
 type Zone struct {
 	Origin string
@@ -13,7 +16,7 @@ type Zone struct {
 
 	SOA *SOA
 
-	RRs map[string][]Record
+	RRs RRSet
 }
 
 // ServeDNS answers DNS queries in zone z.
@@ -28,13 +31,13 @@ func (z *Zone) ServeDNS(ctx context.Context, w MessageWriter, r *Query) {
 
 		dn := q.Name[:len(q.Name)-len(z.Origin)-1]
 
-		for _, rr := range z.RRs[dn] {
-			if q.Type != rr.Type() {
-				continue
-			}
+		rrs, ok := z.RRs[dn]
+		if !ok {
+			continue
+		}
 
+		for _, rr := range rrs[q.Type] {
 			w.Answer(q.Name, z.TTL, rr)
-
 			found = true
 		}
 	}
