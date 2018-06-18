@@ -91,6 +91,7 @@ var (
 	errCalcLen            = errors.New("insufficient data for calculated length type")
 	errReserved           = errors.New("segment prefix is reserved")
 	errPtrCycle           = errors.New("pointer cycle")
+	errInvalidFQDN        = errors.New("invalid FQDN")
 	errInvalidPtr         = errors.New("invalid pointer")
 	errResourceLen        = errors.New("insufficient data for resource body length")
 	errSegTooLong         = errors.New("segment length too long")
@@ -380,7 +381,11 @@ func (r Resource) Pack(b []byte, com Compressor) ([]byte, error) {
 		return nil, errFieldOverflow
 	}
 
-	rlen := r.Record.Length(com)
+	rlen, err := r.Record.Length(com)
+	if err != nil {
+		return nil, err
+	}
+
 	rdatalen := uint16(rlen)
 	if int(rdatalen) != rlen {
 		return nil, errFieldOverflow
@@ -437,7 +442,7 @@ func (r *Resource) Unpack(b []byte, dec Decompressor) ([]byte, error) {
 // Record is a DNS record.
 type Record interface {
 	Type() Type
-	Length(Compressor) int
+	Length(Compressor) (int, error)
 	Pack([]byte, Compressor) ([]byte, error)
 	Unpack([]byte, Decompressor) ([]byte, error)
 }
@@ -451,7 +456,7 @@ type A struct {
 func (A) Type() Type { return TypeA }
 
 // Length returns the encoded RDATA size.
-func (A) Length(Compressor) int { return 4 }
+func (A) Length(Compressor) (int, error) { return 4, nil }
 
 // Pack encodes a as RDATA.
 func (a A) Pack(b []byte, _ Compressor) ([]byte, error) {
@@ -483,7 +488,7 @@ type AAAA struct {
 func (AAAA) Type() Type { return TypeAAAA }
 
 // Length returns the encoded RDATA size.
-func (AAAA) Length(Compressor) int { return 16 }
+func (AAAA) Length(Compressor) (int, error) { return 16, nil }
 
 // Pack encodes a as RDATA.
 func (a AAAA) Pack(b []byte, _ Compressor) ([]byte, error) {
@@ -515,7 +520,7 @@ type CNAME struct {
 func (CNAME) Type() Type { return TypeCNAME }
 
 // Length returns the encoded RDATA size.
-func (c CNAME) Length(com Compressor) int {
+func (c CNAME) Length(com Compressor) (int, error) {
 	return com.Length(c.CNAME)
 }
 
@@ -546,8 +551,12 @@ type SOA struct {
 func (SOA) Type() Type { return TypeSOA }
 
 // Length returns the encoded RDATA size.
-func (s SOA) Length(com Compressor) int {
-	return com.Length(s.NS, s.MBox) + 20
+func (s SOA) Length(com Compressor) (int, error) {
+	n, err := com.Length(s.NS, s.MBox)
+	if err != nil {
+		return 0, err
+	}
+	return n + 20, nil
 }
 
 // Pack encodes s as RDATA.
@@ -634,7 +643,7 @@ type PTR struct {
 func (PTR) Type() Type { return TypePTR }
 
 // Length returns the encoded RDATA size.
-func (p PTR) Length(com Compressor) int {
+func (p PTR) Length(com Compressor) (int, error) {
 	return com.Length(p.PTR)
 }
 
@@ -660,8 +669,12 @@ type MX struct {
 func (MX) Type() Type { return TypeMX }
 
 // Length returns the encoded RDATA size.
-func (m MX) Length(com Compressor) int {
-	return 2 + com.Length(m.MX)
+func (m MX) Length(com Compressor) (int, error) {
+	n, err := com.Length(m.MX)
+	if err != nil {
+		return 0, err
+	}
+	return n + 2, nil
 }
 
 // Pack encodes m as RDATA.
@@ -699,7 +712,7 @@ type NS struct {
 func (NS) Type() Type { return TypeNS }
 
 // Length returns the encoded RDATA size.
-func (n NS) Length(com Compressor) int {
+func (n NS) Length(com Compressor) (int, error) {
 	return com.Length(n.NS)
 }
 
@@ -724,12 +737,12 @@ type TXT struct {
 func (TXT) Type() Type { return TypeTXT }
 
 // Length returns the encoded RDATA size.
-func (t TXT) Length(_ Compressor) int {
+func (t TXT) Length(_ Compressor) (int, error) {
 	var n int
 	for _, s := range t.TXT {
 		n += 1 + len(s)
 	}
-	return n
+	return n, nil
 }
 
 // Pack encodes t as RDATA.
@@ -773,8 +786,12 @@ type SRV struct {
 func (SRV) Type() Type { return TypeSRV }
 
 // Length returns the encoded RDATA size.
-func (s SRV) Length(_ Compressor) int {
-	return 6 + compressor{}.Length(s.Target)
+func (s SRV) Length(_ Compressor) (int, error) {
+	n, err := compressor{}.Length(s.Target)
+	if err != nil {
+		return 0, err
+	}
+	return n + 6, nil
 }
 
 // Pack encodes s as RDATA.

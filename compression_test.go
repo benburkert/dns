@@ -46,6 +46,13 @@ func TestCompressor(t *testing.T) {
 				0xC0, 0x05,
 			},
 		},
+		{
+			name: "invalid-fqdn",
+
+			fqdn: "invalid.com",
+
+			err: errInvalidFQDN,
+		},
 	}
 
 	t.Parallel()
@@ -58,8 +65,15 @@ func TestCompressor(t *testing.T) {
 
 			com := compressor{test.state, 0}
 
-			if want, got := len(test.raw), com.Length(test.fqdn); want != got {
-				t.Fatalf("want compressed length %d, got %d", want, got)
+			length, err := com.Length(test.fqdn)
+			if err != nil {
+				if want, got := test.err, err; want != got {
+					t.Errorf("want err %q, got %q", want, got)
+				}
+			} else {
+				if want, got := len(test.raw), length; want != got {
+					t.Fatalf("want compressed length %d, got %d", want, got)
+				}
 			}
 
 			raw, err := com.Pack(test.buf, test.fqdn)
