@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"sync/atomic"
+	//"fmt"
 )
 
 // Client is a DNS client.
@@ -28,7 +29,6 @@ func (c *Client) Dial(ctx context.Context, network, address string) (net.Conn, e
 		if err != nil {
 			return nil, err
 		}
-
 		conn, err := c.dial(ctx, addr)
 		if err != nil {
 			return nil, err
@@ -48,7 +48,6 @@ func (c *Client) Dial(ctx context.Context, network, address string) (net.Conn, e
 		if err != nil {
 			return nil, err
 		}
-
 		conn, err := c.dial(ctx, addr)
 		if err != nil {
 			return nil, err

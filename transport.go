@@ -6,6 +6,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"fmt"
 )
 
 // Transport is an implementation of AddrDialer that manages connections to DNS
@@ -97,6 +98,7 @@ func (t *Transport) dial(ctx context.Context, addr net.Addr) (net.Conn, bool, er
 	if t.Proxy != nil {
 		var err error
 		if addr, err = t.Proxy(ctx, addr); err != nil {
+			fmt.Printf("[DEBUG] dns dial - err: %v\n", err)
 			return nil, false, err
 		}
 	}
@@ -113,6 +115,7 @@ func (t *Transport) dial(ctx context.Context, addr net.Addr) (net.Conn, bool, er
 
 	conn, err := dial(ctx, network, addr.String())
 	if err != nil {
+		fmt.Printf("[DEBUG] dns dial - err 2: %v\n", err)
 		return nil, false, err
 	}
 

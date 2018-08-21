@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"net"
 	"sync/atomic"
+	//"fmt"
 )
 
 // NameServers is a slice of DNS nameserver addresses.
@@ -63,5 +64,12 @@ func (s NameServers) Upstream(rand io.Reader) ProxyFunc {
 
 		//fmt.Printf("  *** DNS.Upstream() - FOUND KEY %d %s\n", idx.Uint64() + 1, s[idx.Uint64() + 1].String())
 		return s[idx.Uint64() + 1], nil
+	}
+}
+
+// RLS 8/10/2018 - Returns first entry
+func (s NameServers) First() ProxyFunc {
+	return func(ctx context.Context, _ net.Addr) (net.Addr, error) {
+		return s[0], nil
 	}
 }
