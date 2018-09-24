@@ -649,6 +649,50 @@ func TestMessagePackUnpack(t *testing.T) {
 				0x7F, 0x00, 0x00, 0x01, // 127.0.0.1
 			},
 		},
+		{
+			name: ".	IN	AAAA + OPT",
+
+			msg: Message{
+				ID:               0x1001,
+				RecursionDesired: true,
+				Questions: []Question{
+					{
+						Name:  ".",
+						Type:  TypeAAAA,
+						Class: ClassIN,
+					},
+				},
+				Additionals: []Resource{
+					{
+						Name:  ".",
+						Class: 1280,
+						TTL:   0,
+						Record: &OPT{
+							Option: map[uint16][]byte{
+								31337: []byte{'f', 'o', 'o'},
+							},
+						},
+					},
+				},
+			},
+
+			raw: []byte{
+				0x10, 0x01, // ID=0x1001
+				0x01, 0x00, // RD=1
+				0x00, 0x01, // QDCOUNT=1
+				0x00, 0x00, // ANCOUNT=0
+				0x00, 0x00, // NSCOUNT=0
+				0x00, 0x01, // ARCOUNT=1
+
+				0x00, 0x00, 0x1C, 0x00, 0x01, // .	IN	AAAA
+				0x00, 0x00, 0x29, // . OPT ...
+				0x05, 0x00, // CLASS=1280 (udp size)
+				0x00, 0x00, 0x00, 0x00, // ex-rcode+flags
+				0x00, 0x07, // RDLEN=7
+				0x7A, 0x69, // OPTION-CODE=31337
+				0x00, 0x03, 'f', 'o', 'o', // OPTION-DATA=foo
+			},
+		},
 	}
 
 	for _, test := range tests {

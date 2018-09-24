@@ -42,6 +42,7 @@ const (
 	TypeTXT   Type = 16  // [RFC1035] text strings
 	TypeAAAA  Type = 28  // [RFC3596] IP6 Address
 	TypeSRV   Type = 33  // [RFC2782] Server Selection
+	TypeOPT   Type = 41  // [RFC6891] EDNS Pseudo-RR
 	TypeAXFR  Type = 252 // [RFC1035][RFC5936] transfer of an entire zone
 	TypeALL   Type = 255 // [RFC1035][RFC6895] A request for all records the server/cache has available
 
@@ -75,6 +76,7 @@ var NewRecordByType = map[Type]func() Record{
 	TypeTXT:   func() Record { return new(TXT) },
 	TypeAAAA:  func() Record { return new(AAAA) },
 	TypeSRV:   func() Record { return new(SRV) },
+	TypeOPT:   func() Record { return new(OPT) },
 }
 
 var (
@@ -833,4 +835,56 @@ func (s *SRV) Unpack(b []byte, _ Decompressor) ([]byte, error) {
 	var err error
 	s.Target, b, err = decompressor(nil).Unpack(b[6:])
 	return b, err
+}
+
+// OPT is a DNS OPT record.
+type OPT struct {
+	Option map[uint16][]byte
+}
+
+// Type returns the RR type identifier.
+func (OPT) Type() Type { return TypeOPT }
+
+// Length returns the encoded RDATA size.
+func (o OPT) Length(_ Compressor) (int, error) {
+	n := 0
+	for _, data := range o.Option {
+		n += 4 + len(data)
+	}
+	return n, nil
+}
+
+// Pack encodes o as RDATA.
+func (o OPT) Pack(b []byte, _ Compressor) ([]byte, error) {
+	buf := [4]byte{}
+	for code, data := range o.Option {
+		if len(data) > 65535 {
+			return nil, errSegTooLong
+		}
+		nbo.PutUint16(buf[:2], code)
+		nbo.PutUint16(buf[2:], uint16(len(data)))
+		b = append(b, buf[:]...)
+		b = append(b, data...)
+	}
+	return b, nil
+}
+
+// Unpack decodes o from RDATA in b.
+func (o *OPT) Unpack(b []byte, _ Decompressor) ([]byte, error) {
+	if o.Option == nil {
+		o.Option = map[uint16][]byte{}
+	}
+	for len(b) > 0 {
+		if len(b) < 4 {
+			return nil, errResourceLen
+		}
+		code := nbo.Uint16(b[:2])
+		length := int(nbo.Uint16(b[2:4]))
+		if len(b) < 4+length {
+			return nil, errResourceLen
+		}
+		o.Option[code] = b[4 : 4+length]
+		b = b[4+length:]
+	}
+	return b, nil
 }

@@ -347,6 +347,10 @@ func response(msg *Message) *Message {
 
 	res.Response = true
 
+	// Strip any OPT RR that was in the request, as we
+	// don't support EDNS (yet)
+	res.Additionals = []Resource{}
+
 	return res
 }
 
