@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/benburkert/dns/edns"
 )
 
 func TestQuestionPackUnpack(t *testing.T) {
@@ -647,6 +649,55 @@ func TestMessagePackUnpack(t *testing.T) {
 				0x00, 0x04, // RDLENGTH=5
 
 				0x7F, 0x00, 0x00, 0x01, // 127.0.0.1
+			},
+		},
+		{
+			name: ".	IN	AAAA + OPT",
+
+			msg: Message{
+				ID:               0x1001,
+				RecursionDesired: true,
+				Questions: []Question{
+					{
+						Name:  ".",
+						Type:  TypeAAAA,
+						Class: ClassIN,
+					},
+				},
+				Additionals: []Resource{
+					{
+						Name:  ".",
+						Class: 1280,
+						TTL:   0,
+						Record: &OPT{
+							Options: []edns.Option{
+								edns.Option{
+									Code: edns.OptionCodeCookie,
+									Data: []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07},
+								},
+							},
+						},
+					},
+				},
+			},
+
+			raw: []byte{
+				0x10, 0x01, // ID=0x1001
+				0x01, 0x00, // RD=1
+				0x00, 0x01, // QDCOUNT=1
+				0x00, 0x00, // ANCOUNT=0
+				0x00, 0x00, // NSCOUNT=0
+				0x00, 0x01, // ARCOUNT=1
+
+				0x00, 0x00, 0x1C, 0x00, 0x01, // .	IN	AAAA
+				0x00, 0x00, 0x29, // . OPT ...
+				0x05, 0x00, // CLASS=1280 (UDP MTU)
+				0x00, 0x00, 0x00, 0x00, // ex-rcode+flags
+				0x00, 0x0C, // RDLENGTH=12
+
+				0x00, 0x0A, // OPTION-CODE = 10
+				0x00, 0x08, // OPTION-LENGTH = 8
+				0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, // Client Cookie (fixed size, 8 bytes)
 			},
 		},
 	}

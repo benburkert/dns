@@ -9,6 +9,8 @@ import (
 	"errors"
 	"net"
 	"time"
+
+	"github.com/benburkert/dns/edns"
 )
 
 var nbo = binary.BigEndian
@@ -42,6 +44,7 @@ const (
 	TypeTXT   Type = 16  // [RFC1035] text strings
 	TypeAAAA  Type = 28  // [RFC3596] IP6 Address
 	TypeSRV   Type = 33  // [RFC2782] Server Selection
+	TypeOPT   Type = 41  // [RFC6891][RFC3225] OPT
 	TypeAXFR  Type = 252 // [RFC1035][RFC5936] transfer of an entire zone
 	TypeALL   Type = 255 // [RFC1035][RFC6895] A request for all records the server/cache has available
 
@@ -75,6 +78,7 @@ var NewRecordByType = map[Type]func() Record{
 	TypeTXT:   func() Record { return new(TXT) },
 	TypeAAAA:  func() Record { return new(AAAA) },
 	TypeSRV:   func() Record { return new(SRV) },
+	TypeOPT:   func() Record { return new(OPT) },
 }
 
 var (
@@ -833,4 +837,47 @@ func (s *SRV) Unpack(b []byte, _ Decompressor) ([]byte, error) {
 	var err error
 	s.Target, b, err = decompressor(nil).Unpack(b[6:])
 	return b, err
+}
+
+// OPT is a DNS OPT record.
+type OPT struct {
+	Options []edns.Option
+}
+
+// Type returns the RR type identifier.
+func (o OPT) Type() Type { return TypeOPT }
+
+// Length returns the encoded RDATA size.
+func (o OPT) Length(_ Compressor) (int, error) {
+	var n int
+	for _, opt := range o.Options {
+		n += opt.Length()
+	}
+	return n, nil
+}
+
+// Pack encodes o as RDATA.
+func (o OPT) Pack(b []byte, _ Compressor) ([]byte, error) {
+	var err error
+	for _, opt := range o.Options {
+		if b, err = opt.Pack(b); err != nil {
+			return nil, err
+		}
+	}
+	return b, nil
+}
+
+// Unpack decodes o from RDATA in b.
+func (o *OPT) Unpack(b []byte, _ Decompressor) ([]byte, error) {
+	o.Options = nil
+
+	var err error
+	for len(b) > 0 {
+		var opt edns.Option
+		if b, err = opt.Unpack(b); err != nil {
+			return nil, err
+		}
+		o.Options = append(o.Options, opt)
+	}
+	return b, nil
 }
