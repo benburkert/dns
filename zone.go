@@ -28,6 +28,12 @@ func (z *Zone) ServeDNS(ctx context.Context, w MessageWriter, r *Query) {
 		if !strings.HasSuffix(q.Name, z.Origin) {
 			continue
 		}
+		if q.Type == TypeSOA && q.Name == z.Origin {
+			w.Answer(q.Name, z.TTL, z.SOA)
+			found = true
+
+			continue
+		}
 
 		dn := q.Name[:len(q.Name)-len(z.Origin)-1]
 

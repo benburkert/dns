@@ -130,6 +130,35 @@ func TestZone(t *testing.T) {
 		t.Errorf("want SOA record %+v, got %+v", *want, *got)
 	}
 
+	// test SOA query
+
+	q.Message = &Message{
+		Questions: []Question{
+			{
+				Name:  "localhost.",
+				Type:  TypeSOA,
+				Class: ClassIN,
+			},
+		},
+	}
+
+	if res, err = client.Do(context.Background(), q); err != nil {
+		t.Fatal(err)
+	}
+	if want, got := 1, len(res.Answers); want != got {
+		t.Errorf("want %d answers, got %d", want, got)
+	}
+	if want, got := 0, len(res.Authorities); want != got {
+		t.Errorf("want %d authorities, got %d", want, got)
+	}
+
+	if soa, ok = res.Answers[0].Record.(*SOA); !ok {
+		t.Fatalf("non SOA authority record: %+v", res.Authorities[0])
+	}
+	if want, got := localhostZone.SOA, soa; !reflect.DeepEqual(*want, *got) {
+		t.Errorf("want SOA record %+v, got %+v", *want, *got)
+	}
+
 	// test recursive query + cname
 
 	q.Message = &Message{
