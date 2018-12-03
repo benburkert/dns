@@ -8,14 +8,15 @@ import (
 	"net"
 	"sync/atomic"
 	//"fmt"
+	//"runtime/debug"
 )
 
 // NameServers is a slice of DNS nameserver addresses.
 type NameServers []net.Addr
 
 // RLS 2/15/2018 - This is a custom key used in context structs to tell the dialer to use an alternate DNS server if available.
-type key int
-const UpstreamKey key = 0
+type key string
+const UpstreamKey key = "upstream"
 
 
 // Random picks a random Addr from s every time.
@@ -47,12 +48,14 @@ func (s NameServers) Upstream(rand io.Reader) ProxyFunc {
 
 	max := big.NewInt(int64(len(s) - 1))
 	return func(ctx context.Context, _ net.Addr) (net.Addr, error) {
-
+		//fmt.Println("[DEBUG] DNS/Upstream()")
 		// ctx.Value returns nil if ctx has no value for the key
 		useUpstream := ctx.Value(UpstreamKey)
 
 		// No upstream key was provided, so use the first entry
-		if useUpstream == nil || len(s) == 1{
+		if useUpstream == nil || len(s) == 1 {
+			//fmt.Println("[DEBUG] DNS/Upstream() - No upstream key. Using first entry.", ctx)
+			//debug.PrintStack()
 			return s[0], nil
 		}
 
@@ -62,7 +65,7 @@ func (s NameServers) Upstream(rand io.Reader) ProxyFunc {
 			return nil, err
 		}
 
-		//fmt.Printf("  *** DNS.Upstream() - FOUND KEY %d %s\n", idx.Uint64() + 1, s[idx.Uint64() + 1].String())
+		//fmt.Printf("[DEBUG] DNS.Upstream() - FOUND KEY %d %s\n", idx.Uint64() + 1, s[idx.Uint64() + 1].String())
 		return s[idx.Uint64() + 1], nil
 	}
 }

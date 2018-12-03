@@ -8,7 +8,7 @@ package init
 import (
 	"net"
 
-	"github.com/benburkert/dns"
+	"github.com/winstonprivacyinc/dns"
 )
 
 func init() {

@@ -115,7 +115,8 @@ func (t *Transport) dial(ctx context.Context, addr net.Addr) (net.Conn, bool, er
 
 	conn, err := dial(ctx, network, addr.String())
 	if err != nil {
-		fmt.Printf("[DEBUG] dns dial - err 2: %v\n", err)
+		// operation was canceled -> the caller aborted the connection, typically by closing a browser tab.
+		//fmt.Printf("[DEBUG] dns dial - err 2: %s %s %v\n", network, addr.String(), err)
 		return nil, false, err
 	}
 

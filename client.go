@@ -23,6 +23,7 @@ type Client struct {
 // Dial dials a DNS server and returns a net Conn that reads and writes DNS
 // messages.
 func (c *Client) Dial(ctx context.Context, network, address string) (net.Conn, error) {
+	//fmt.Println("[DEBUG] client.go - ctx", ctx)
 	switch network {
 	case "tcp", "tcp4", "tcp6":
 		addr, err := net.ResolveTCPAddr(network, address)
