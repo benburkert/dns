@@ -603,6 +603,74 @@ func TestMessagePackUnpack(t *testing.T) {
 			},
 		},
 		{
+			name: ". 60 IN DNAME",
+
+			msg: Message{
+				ID:       0x108,
+				Response: true,
+				Questions: []Question{
+					{
+						Name:  "dname.",
+						Type:  TypeA,
+						Class: ClassIN,
+					},
+				},
+				Answers: []Resource{
+					{
+						Name:  ".",
+						Class: ClassIN,
+						TTL:   60 * time.Second,
+						Record: &DNAME{
+							DNAME: "example.com.",
+						},
+					},
+					{
+						Name:  "dname.example.com.",
+						Class: ClassIN,
+						TTL:   60 * time.Second,
+						Record: &A{
+							A: net.IPv4(127, 0, 0, 1).To4(),
+						},
+					},
+				},
+			},
+
+			raw: []byte{
+				0x01, 0x08, // ID=0x0108
+				0x80, 0x00, // RD=1
+				0x00, 0x01, // QDCOUNT=1
+				0x00, 0x02, // ANCOUNT=2
+				0x00, 0x00, // NSCOUNT=0
+				0x00, 0x00, // ARCOUNT=0
+
+				// dname.	IN	A
+				0x05, 'd', 'n', 'a', 'm', 'e',
+				0x00,
+				0x00, 0x01, 0x00, 0x01, // TYPE=A,CLASS=IN
+
+				// example.com.	IN	DNAME
+				0x00,
+				0x00, 0x27, 0x00, 0x01, // TYPE=DNAME,CLASS=IN
+				0x00, 0x00, 0x00, 0x3C, // TTL=60
+				0x00, 0x0D,
+
+				0x07, 'e', 'x', 'a', 'm', 'p', 'l', 'e',
+				0x03, 'c', 'o', 'm',
+				0x00,
+
+				// dname.example.com.	IN	A
+				0x05, 'd', 'n', 'a', 'm', 'e',
+				0x07, 'e', 'x', 'a', 'm', 'p', 'l', 'e',
+				0x03, 'c', 'o', 'm',
+				0x00,
+				0x00, 0x01, 0x00, 0x01, // TYPE=A,CLASS=IN
+				0x00, 0x00, 0x00, 0x3C, // TTL=60
+				0x00, 0x04,
+
+				0x7F, 0x00, 0x00, 0x01, // 127.0.0.1
+			},
+		},
+		{
 			name: "compressed response",
 
 			msg: Message{

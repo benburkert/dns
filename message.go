@@ -44,6 +44,7 @@ const (
 	TypeTXT   Type = 16  // [RFC1035] text strings
 	TypeAAAA  Type = 28  // [RFC3596] IP6 Address
 	TypeSRV   Type = 33  // [RFC2782] Server Selection
+	TypeDNAME Type = 39  // [RFC6672] DNAME
 	TypeOPT   Type = 41  // [RFC6891][RFC3225] OPT
 	TypeAXFR  Type = 252 // [RFC1035][RFC5936] transfer of an entire zone
 	TypeALL   Type = 255 // [RFC1035][RFC6895] A request for all records the server/cache has available
@@ -78,6 +79,7 @@ var NewRecordByType = map[Type]func() Record{
 	TypeTXT:   func() Record { return new(TXT) },
 	TypeAAAA:  func() Record { return new(AAAA) },
 	TypeSRV:   func() Record { return new(SRV) },
+	TypeDNAME: func() Record { return new(DNAME) },
 	TypeOPT:   func() Record { return new(OPT) },
 }
 
@@ -836,6 +838,31 @@ func (s *SRV) Unpack(b []byte, _ Decompressor) ([]byte, error) {
 
 	var err error
 	s.Target, b, err = decompressor(nil).Unpack(b[6:])
+	return b, err
+}
+
+// DNAME is a DNS DNAME record.
+type DNAME struct {
+	DNAME string
+}
+
+// Type returns the RR type identifier.
+func (DNAME) Type() Type { return TypeDNAME }
+
+// Length returns the encoded RDATA size.
+func (d DNAME) Length(com Compressor) (int, error) {
+	return com.Length(d.DNAME)
+}
+
+// Pack encodes c as RDATA.
+func (d DNAME) Pack(b []byte, com Compressor) ([]byte, error) {
+	return com.Pack(b, d.DNAME)
+}
+
+// Unpack decodes c from RDATA in b.
+func (d *DNAME) Unpack(b []byte, dec Decompressor) ([]byte, error) {
+	var err error
+	d.DNAME, b, err = dec.Unpack(b)
 	return b, err
 }
 
