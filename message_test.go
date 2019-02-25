@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -671,6 +672,53 @@ func TestMessagePackUnpack(t *testing.T) {
 			},
 		},
 		{
+			name: ". 60 IN CAA",
+
+			msg: Message{
+				ID:       0x109,
+				Response: true,
+				Questions: []Question{
+					{
+						Name:  ".",
+						Type:  TypeCAA,
+						Class: ClassIN,
+					},
+				},
+				Answers: []Resource{
+					{
+						Name:  ".",
+						Class: ClassIN,
+						TTL:   60 * time.Second,
+						Record: &CAA{
+							Tag:   "issue",
+							Value: "pki.example.com",
+						},
+					},
+				},
+			},
+
+			raw: []byte{
+				0x01, 0x09, // ID=0x0109
+				0x80, 0x00, // RD=1
+				0x00, 0x01, // QDCOUNT=1
+				0x00, 0x01, // ANCOUNT=1
+				0x00, 0x00, // NSCOUNT=0
+				0x00, 0x00, // ARCOUNT=0
+
+				0x00, 0x01, 0x01, 0x00, 0x01, // .      IN      CAA
+
+				// .    60      IN      issue "pki.example.com"
+				0x00,
+				0x01, 0x01, 0x00, 0x01, // TYPE=CAA,CLASS=IN
+				0x00, 0x00, 0x00, 0x3C, // TTL=60
+				0x00, 0x16,
+
+				0x00, 0x05,
+				'i', 's', 's', 'u', 'e',
+				'p', 'k', 'i', '.', 'e', 'x', 'a', 'm', 'p', 'l', 'e', '.', 'c', 'o', 'm',
+			},
+		},
+		{
 			name: "compressed response",
 
 			msg: Message{
@@ -1178,5 +1226,116 @@ func largeTestMsg() Message {
 				},
 			},
 		},
+	}
+}
+
+func TestInvalidCAA(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+
+		msg Message
+		raw []byte
+
+		err error
+	}{
+		{
+			name: "zero length tag",
+
+			msg: Message{
+				ID:       0x01,
+				Response: true,
+				Questions: []Question{
+					{
+						Name:  ".",
+						Type:  TypeCAA,
+						Class: ClassIN,
+					},
+				},
+				Answers: []Resource{
+					{
+						Name:  ".",
+						Class: ClassIN,
+						TTL:   60 * time.Second,
+						Record: &CAA{
+							IssuerCritical: true,
+							Tag:            "",
+							Value:          "ca.example.com",
+						},
+					},
+				},
+			},
+			raw: []byte{
+				0x00, 0x01, // ID=0x0001
+				0x80, 0x00, // RD=1
+				0x00, 0x01, // QDCOUNT=1
+				0x00, 0x01, // ANCOUNT=1
+				0x00, 0x00, // NSCOUNT=0
+				0x00, 0x00, // ARCOUNT=0
+
+				0x00, 0x01, 0x01, 0x00, 0x01, // .      IN      CAA
+
+				// .    60      IN      '' "ca.example.com"
+				0x00,
+				0x01, 0x01, 0x00, 0x01, // TYPE=CAA,CLASS=IN
+				0x00, 0x00, 0x00, 0x3C, // TTL=60
+				0x00, 0x10,
+
+				0x01, 0x00,
+				'c', 'a', '.', 'e', 'x', 'a', 'm', 'p', 'l', 'e', '.', 'c', 'o', 'm',
+			},
+
+			err: errZeroSegLen,
+		},
+		{
+			name: "tag too long",
+
+			msg: Message{
+				ID:       0x01,
+				Response: true,
+				Questions: []Question{
+					{
+						Name:  ".",
+						Type:  TypeCAA,
+						Class: ClassIN,
+					},
+				},
+				Answers: []Resource{
+					{
+						Name:  ".",
+						Class: ClassIN,
+						TTL:   60 * time.Second,
+						Record: &CAA{
+							IssuerCritical: true,
+							Tag:            strings.Repeat("a", 256),
+							Value:          "ca.example.com",
+						},
+					},
+				},
+			},
+
+			err: errSegTooLong,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+
+		t.Run(string(test.name), func(t *testing.T) {
+			t.Parallel()
+
+			_, err := test.msg.Pack(nil, true)
+			if want, got := test.err, err; want != got {
+				t.Errorf("want pack error %q, got %q", want, got)
+			}
+
+			if len(test.raw) > 0 {
+				_, err = new(Message).Unpack(test.raw)
+				if want, got := test.err, err; want != got {
+					t.Errorf("want unpack error %q, got %q", want, got)
+				}
+			}
+		})
 	}
 }

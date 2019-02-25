@@ -48,6 +48,7 @@ const (
 	TypeOPT   Type = 41  // [RFC6891][RFC3225] OPT
 	TypeAXFR  Type = 252 // [RFC1035][RFC5936] transfer of an entire zone
 	TypeALL   Type = 255 // [RFC1035][RFC6895] A request for all records the server/cache has available
+	TypeCAA   Type = 257 // [RFC6844] Certification Authority Restriction
 
 	TypeANY Type = 0
 
@@ -81,6 +82,7 @@ var NewRecordByType = map[Type]func() Record{
 	TypeSRV:   func() Record { return new(SRV) },
 	TypeDNAME: func() Record { return new(DNAME) },
 	TypeOPT:   func() Record { return new(OPT) },
+	TypeCAA:   func() Record { return new(CAA) },
 }
 
 var (
@@ -907,4 +909,67 @@ func (o *OPT) Unpack(b []byte, _ Decompressor) ([]byte, error) {
 		o.Options = append(o.Options, opt)
 	}
 	return b, nil
+}
+
+// type CAA is a DNS CAA record.
+type CAA struct {
+	IssuerCritical bool
+
+	Tag   string
+	Value string
+}
+
+// Type returns the RR type identifier.
+func (CAA) Type() Type { return TypeCAA }
+
+// Length returns the encoded RDATA size.
+func (c CAA) Length(_ Compressor) (int, error) {
+	return 2 + len(c.Tag) + len(c.Value), nil
+}
+
+// Pack encodes c as RDATA.
+func (c CAA) Pack(b []byte, _ Compressor) ([]byte, error) {
+	buf := make([]byte, 2, 2+len(c.Tag)+len(c.Value))
+
+	if c.IssuerCritical {
+		buf[0] = 1
+	}
+
+	tagLength := len(c.Tag)
+	if tagLength == 0 {
+		return nil, errZeroSegLen
+	}
+	if tagLength > 255 {
+		return nil, errSegTooLong
+	}
+	buf[1] = byte(tagLength)
+
+	buf = append(buf, []byte(c.Tag)...)
+	buf = append(buf, []byte(c.Value)...)
+
+	return append(b, buf...), nil
+}
+
+// Unpack decodes c from RDATA in b.
+func (c *CAA) Unpack(b []byte, _ Decompressor) ([]byte, error) {
+	if len(b) < 2 {
+		return nil, errResourceLen
+	}
+
+	if b[0]&0x01 > 0 {
+		c.IssuerCritical = true
+	}
+
+	tagLength := int(b[1])
+	if tagLength == 0 {
+		return nil, errZeroSegLen
+	}
+	if 2+tagLength > len(b) {
+		return nil, errResourceLen
+	}
+
+	c.Tag = string(b[2 : 2+tagLength])
+	c.Value = string(b[2+tagLength:])
+
+	return nil, nil
 }
