@@ -6,7 +6,7 @@ import (
 
 // Compressor encodes domain names.
 type Compressor interface {
-	Length(...string) int
+	Length(...string) (int, error)
 	Pack([]byte, string) ([]byte, error)
 }
 
@@ -20,7 +20,7 @@ type compressor struct {
 	offset int
 }
 
-func (c compressor) Length(names ...string) int {
+func (c compressor) Length(names ...string) (int, error) {
 	var visited map[string]struct{}
 	if c.tbl != nil {
 		visited = make(map[string]struct{})
@@ -28,29 +28,40 @@ func (c compressor) Length(names ...string) int {
 
 	var n int
 	for _, name := range names {
-		n += c.length(name, visited)
+		nn, err := c.length(name, visited)
+		if err != nil {
+			return 0, err
+		}
+		n += nn
 	}
-	return n
+	return n, nil
 }
 
-func (c compressor) length(name string, visited map[string]struct{}) int {
+func (c compressor) length(name string, visited map[string]struct{}) (int, error) {
 	if name == "." || name == "" {
-		return 1
+		return 1, nil
+	}
+	if !strings.HasSuffix(name, ".") {
+		return 0, errInvalidFQDN
 	}
 
 	if c.tbl != nil {
 		if _, ok := c.tbl[name]; ok {
-			return 2
+			return 2, nil
 		}
 		if _, ok := visited[name]; ok {
-			return 2
+			return 2, nil
 		}
 
 		visited[name] = struct{}{}
 	}
 
 	pvt := strings.IndexByte(name, '.')
-	return pvt + 1 + c.length(name[pvt+1:], visited)
+	n, err := c.length(name[pvt+1:], visited)
+	if err != nil {
+		return 0, err
+	}
+	return pvt + 1 + n, nil
 }
 
 func (c compressor) Pack(b []byte, fqdn string) ([]byte, error) {
@@ -70,10 +81,12 @@ func (c compressor) Pack(b []byte, fqdn string) ([]byte, error) {
 	}
 
 	pvt := strings.IndexByte(fqdn, '.')
-	if pvt == 0 {
+	switch {
+	case pvt == -1:
+		return nil, errInvalidFQDN
+	case pvt == 0:
 		return nil, errZeroSegLen
-	}
-	if pvt > 63 {
+	case pvt > 63:
 		return nil, errSegTooLong
 	}
 

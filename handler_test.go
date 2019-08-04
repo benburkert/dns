@@ -14,25 +14,29 @@ func TestResolveMux(t *testing.T) {
 	mailZone := &Zone{
 		Origin: "mx.",
 		TTL:    24 * time.Hour,
-		RRs: map[string][]Record{
+		RRs: RRSet{
 			"foo": {
-				&MX{
-					Pref: 101,
-					MX:   "a.foo.mx.",
-				},
-				&MX{
-					Pref: 101,
-					MX:   "b.foo.mx.",
+				TypeMX: {
+					&MX{
+						Pref: 101,
+						MX:   "a.foo.mx.",
+					},
+					&MX{
+						Pref: 101,
+						MX:   "b.foo.mx.",
+					},
 				},
 			},
 			"bar": {
-				&MX{
-					Pref: 101,
-					MX:   "a.bar.mx.",
-				},
-				&MX{
-					Pref: 101,
-					MX:   "b.bar.mx.",
+				TypeMX: {
+					&MX{
+						Pref: 101,
+						MX:   "a.bar.mx.",
+					},
+					&MX{
+						Pref: 101,
+						MX:   "b.bar.mx.",
+					},
 				},
 			},
 		},
@@ -68,10 +72,10 @@ func TestResolveMux(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if want, got := len(mailZone.RRs["foo"]), len(msg.Answers); want != got {
+		if want, got := len(mailZone.RRs["foo"][TypeMX]), len(msg.Answers); want != got {
 			t.Fatalf("want %d answers, got %d", want, got)
 		}
-		for i, rec := range mailZone.RRs["foo"] {
+		for i, rec := range mailZone.RRs["foo"][TypeMX] {
 			if want, got := rec, msg.Answers[i].Record; !reflect.DeepEqual(want, got) {
 				t.Errorf("want MX record %#v, got %#v", want, got)
 			}
@@ -95,11 +99,12 @@ func TestResolveMux(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if want, got := len(mailZone.RRs["foo"])+len(mailZone.RRs["bar"]), len(msg.Answers); want != got {
+
+		if want, got := len(mailZone.RRs["foo"][TypeMX])+len(mailZone.RRs["bar"][TypeMX]), len(msg.Answers); want != got {
 			t.Fatalf("want %d answers, got %d", want, got)
 		}
 
-		for i, rec := range append(mailZone.RRs["foo"], mailZone.RRs["bar"]...) {
+		for i, rec := range append(mailZone.RRs["foo"][TypeMX], mailZone.RRs["bar"][TypeMX]...) {
 			if want, got := rec, msg.Answers[i].Record; !reflect.DeepEqual(want, got) {
 				t.Errorf("want MX record %#v, got %#v", want, got)
 			}
@@ -123,11 +128,13 @@ func TestResolveMux(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if want, got := len(localhostZone.RRs["app"]), len(msg.Answers); want != got {
+
+		answers := append(localhostZone.RRs["app"][TypeA], localhostZone.RRs["app"][TypeAAAA]...)
+		if want, got := len(answers), len(msg.Answers); want != got {
 			t.Fatalf("want %d answers, got %d", want, got)
 		}
 
-		for i, rec := range localhostZone.RRs["app"] {
+		for i, rec := range answers {
 			if want, got := rec, msg.Answers[i].Record; !reflect.DeepEqual(want, got) {
 				t.Errorf("want localhost record %#v, got %#v", want, got)
 			}

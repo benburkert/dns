@@ -43,7 +43,7 @@ A handler answers queries for a server or a local resolver for a client:
 	zone := &dns.Zone{
 		Origin: "localhost.",
 		TTL:    5 * time.Minute,
-		RRs: map[string][]dns.Record{
+		RRs: dns.RRSet{
 			"alpha": []dns.Record{
 				&dns.A{net.IPv4(127, 0, 0, 42).To4()},
 				&dns.AAAA{net.ParseIP("::42")},

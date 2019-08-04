@@ -70,26 +70,42 @@ func ExampleServer_authoritative() {
 			MBox:   "hostmaster.tld.",
 			Serial: 1234,
 		},
-		RRs: map[string][]dns.Record{
+		RRs: dns.RRSet{
 			"1.app": {
-				&dns.A{A: net.IPv4(10, 42, 0, 1).To4()},
-				&dns.AAAA{AAAA: net.ParseIP("dead:beef::1")},
+				dns.TypeA: {
+					&dns.A{A: net.IPv4(10, 42, 0, 1).To4()},
+				},
+				dns.TypeAAAA: {
+					&dns.AAAA{AAAA: net.ParseIP("dead:beef::1")},
+				},
 			},
 			"2.app": {
-				&dns.A{A: net.IPv4(10, 42, 0, 2).To4()},
-				&dns.AAAA{AAAA: net.ParseIP("dead:beef::2")},
+				dns.TypeA: {
+					&dns.A{A: net.IPv4(10, 42, 0, 2).To4()},
+				},
+				dns.TypeAAAA: {
+					&dns.AAAA{AAAA: net.ParseIP("dead:beef::2")},
+				},
 			},
 			"3.app": {
-				&dns.A{A: net.IPv4(10, 42, 0, 3).To4()},
-				&dns.AAAA{AAAA: net.ParseIP("dead:beef::3")},
+				dns.TypeA: {
+					&dns.A{A: net.IPv4(10, 42, 0, 3).To4()},
+				},
+				dns.TypeAAAA: {
+					&dns.AAAA{AAAA: net.ParseIP("dead:beef::3")},
+				},
 			},
 			"app": {
-				&dns.A{A: net.IPv4(10, 42, 0, 1).To4()},
-				&dns.A{A: net.IPv4(10, 42, 0, 2).To4()},
-				&dns.A{A: net.IPv4(10, 42, 0, 3).To4()},
-				&dns.AAAA{AAAA: net.ParseIP("dead:beef::1")},
-				&dns.AAAA{AAAA: net.ParseIP("dead:beef::2")},
-				&dns.AAAA{AAAA: net.ParseIP("dead:beef::3")},
+				dns.TypeA: {
+					&dns.A{A: net.IPv4(10, 42, 0, 1).To4()},
+					&dns.A{A: net.IPv4(10, 42, 0, 2).To4()},
+					&dns.A{A: net.IPv4(10, 42, 0, 3).To4()},
+				},
+				dns.TypeAAAA: {
+					&dns.AAAA{AAAA: net.ParseIP("dead:beef::1")},
+					&dns.AAAA{AAAA: net.ParseIP("dead:beef::2")},
+					&dns.AAAA{AAAA: net.ParseIP("dead:beef::3")},
+				},
 			},
 		},
 	}
@@ -156,6 +172,8 @@ func ExampleServer_recursive() {
 		Forwarder: &dns.Client{
 			Transport: &dns.Transport{
 				Proxy: dns.NameServers{
+					&net.TCPAddr{IP: net.IPv4(8, 8, 8, 8), Port: 53},
+					&net.TCPAddr{IP: net.IPv4(8, 8, 4, 4), Port: 53},
 					&net.UDPAddr{IP: net.IPv4(8, 8, 8, 8), Port: 53},
 					&net.UDPAddr{IP: net.IPv4(8, 8, 4, 4), Port: 53},
 				}.RoundRobin(),
@@ -206,9 +224,11 @@ func ExampleServer_recursive() {
 func ExampleServer_recursiveWithZone() {
 	customTLD := &dns.Zone{
 		Origin: "tld.",
-		RRs: map[string][]dns.Record{
+		RRs: dns.RRSet{
 			"foo": {
-				&dns.A{A: net.IPv4(127, 0, 0, 1).To4()},
+				dns.TypeA: {
+					&dns.A{A: net.IPv4(127, 0, 0, 1).To4()},
+				},
 			},
 		},
 	}
@@ -222,7 +242,9 @@ func ExampleServer_recursiveWithZone() {
 		Forwarder: &dns.Client{
 			Transport: &dns.Transport{
 				Proxy: dns.NameServers{
-					&net.UDPAddr{IP: net.IPv4(8, 8, 8, 8), Port: 53},
+					&net.TCPAddr{IP: net.IPv4(8, 8, 8, 8), Port: 53},
+					&net.TCPAddr{IP: net.IPv4(8, 8, 8, 8), Port: 53},
+					&net.UDPAddr{IP: net.IPv4(8, 8, 4, 4), Port: 53},
 					&net.UDPAddr{IP: net.IPv4(8, 8, 4, 4), Port: 53},
 				}.RoundRobin(),
 			},

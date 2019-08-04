@@ -56,7 +56,7 @@ func LeafCert(hostname string, parent *Cert) *Cert {
 }
 
 func newCert(hostname string) *Cert {
-	privateKey, err := ecdsa.GenerateKey(elliptic.P224(), rand.Reader)
+	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		panic(err)
 	}

@@ -268,14 +268,8 @@ func (w packetWriter) Reply(ctx context.Context) error {
 }
 
 func (w packetWriter) truncate(buf []byte) error {
-	msg := new(Message)
-	if _, err := msg.Unpack(buf[:maxPacketLen]); err != nil && err != errResourceLen {
-		return err
-	}
-	msg.Truncated = true
-
 	var err error
-	if buf, err = msg.Pack(buf[:0], true); err != nil {
+	if buf, err = truncate(buf, maxPacketLen); err != nil {
 		return err
 	}
 
@@ -326,7 +320,8 @@ type serverWriter struct {
 
 func (w serverWriter) Recur(ctx context.Context) (*Message, error) {
 	query := &Query{
-		Message: request(w.query.Message),
+		Message:    request(w.query.Message),
+		RemoteAddr: w.query.RemoteAddr,
 	}
 
 	qs := make([]Question, 0, len(w.query.Questions))

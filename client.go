@@ -35,8 +35,8 @@ func (c *Client) Dial(ctx context.Context, network, address string) (net.Conn, e
 			return nil, err
 		}
 
-		return streamSession{
-			session: &session{
+		return &streamSession{
+			session: session{
 				Conn:    conn,
 				addr:    addr,
 				client:  c,
@@ -44,7 +44,6 @@ func (c *Client) Dial(ctx context.Context, network, address string) (net.Conn, e
 			},
 		}, nil
 	case "udp", "udp4", "udp6":
-
 		addr, err := net.ResolveUDPAddr(network, address)
 		if err != nil {
 			return nil, err
@@ -54,8 +53,8 @@ func (c *Client) Dial(ctx context.Context, network, address string) (net.Conn, e
 			return nil, err
 		}
 
-		return packetSession{
-			session: &session{
+		return &packetSession{
+			session: session{
 				Conn:    conn,
 				addr:    addr,
 				client:  c,

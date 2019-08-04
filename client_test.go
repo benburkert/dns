@@ -32,10 +32,14 @@ func TestLookupHost(t *testing.T) {
 
 	srv := mustServer(&Zone{
 		Origin: "dev.",
-		RRs: map[string][]Record{
+		RRs: RRSet{
 			"localhost": {
-				&A{A: net.IPv4(127, 0, 0, 1)},
-				&AAAA{AAAA: net.ParseIP("::1")},
+				TypeA: {
+					&A{A: net.IPv4(127, 0, 0, 1)},
+				},
+				TypeAAAA: {
+					&AAAA{AAAA: net.ParseIP("::1")},
+				},
 			},
 		},
 	})

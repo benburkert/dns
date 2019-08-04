@@ -2,6 +2,7 @@ package dns
 
 import (
 	"context"
+	"errors"
 	"math/rand"
 	"net"
 	"testing"
@@ -130,4 +131,40 @@ func TestCacheMultiAnswer(t *testing.T) {
 	if want, got := "127.0.3.1", msg.Answers[2].Record.(*A).A.String(); want != got {
 		t.Errorf("want A record %q, got %q", want, got)
 	}
+}
+
+func TestCacheRecurError(t *testing.T) {
+	client := &Client{
+		Transport: badDialer{},
+		Resolver:  new(Cache),
+	}
+
+	query := &Query{
+		Message: &Message{
+			Questions: []Question{
+				{Name: "test.local.", Type: TypeA},
+			},
+		},
+	}
+
+	_, err := client.Do(context.Background(), query)
+	if want, got := badSend, err; want != got {
+		t.Errorf("want cache error %q, got %q", want, got)
+	}
+}
+
+type badDialer struct{}
+
+func (badDialer) DialAddr(_ context.Context, _ net.Addr) (Conn, error) {
+	return badConn{}, nil
+}
+
+type badConn struct {
+	Conn
+}
+
+var badSend = errors.New("bad send")
+
+func (badConn) Send(_ *Message) error {
+	return badSend
 }

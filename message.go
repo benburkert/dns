@@ -9,6 +9,8 @@ import (
 	"errors"
 	"net"
 	"time"
+
+	"github.com/benburkert/dns/edns"
 )
 
 var nbo = binary.BigEndian
@@ -42,8 +44,11 @@ const (
 	TypeTXT   Type = 16  // [RFC1035] text strings
 	TypeAAAA  Type = 28  // [RFC3596] IP6 Address
 	TypeSRV   Type = 33  // [RFC2782] Server Selection
+	TypeDNAME Type = 39  // [RFC6672] DNAME
+	TypeOPT   Type = 41  // [RFC6891][RFC3225] OPT
 	TypeAXFR  Type = 252 // [RFC1035][RFC5936] transfer of an entire zone
 	TypeALL   Type = 255 // [RFC1035][RFC6895] A request for all records the server/cache has available
+	TypeCAA   Type = 257 // [RFC6844] Certification Authority Restriction
 
 	TypeANY Type = 0
 
@@ -75,6 +80,9 @@ var NewRecordByType = map[Type]func() Record{
 	TypeTXT:   func() Record { return new(TXT) },
 	TypeAAAA:  func() Record { return new(AAAA) },
 	TypeSRV:   func() Record { return new(SRV) },
+	TypeDNAME: func() Record { return new(DNAME) },
+	TypeOPT:   func() Record { return new(OPT) },
+	TypeCAA:   func() Record { return new(CAA) },
 }
 
 var (
@@ -91,6 +99,7 @@ var (
 	errCalcLen            = errors.New("insufficient data for calculated length type")
 	errReserved           = errors.New("segment prefix is reserved")
 	errPtrCycle           = errors.New("pointer cycle")
+	errInvalidFQDN        = errors.New("invalid FQDN")
 	errInvalidPtr         = errors.New("invalid pointer")
 	errResourceLen        = errors.New("insufficient data for resource body length")
 	errSegTooLong         = errors.New("segment length too long")
@@ -380,7 +389,11 @@ func (r Resource) Pack(b []byte, com Compressor) ([]byte, error) {
 		return nil, errFieldOverflow
 	}
 
-	rlen := r.Record.Length(com)
+	rlen, err := r.Record.Length(com)
+	if err != nil {
+		return nil, err
+	}
+
 	rdatalen := uint16(rlen)
 	if int(rdatalen) != rlen {
 		return nil, errFieldOverflow
@@ -403,7 +416,7 @@ func (r *Resource) Unpack(b []byte, dec Decompressor) ([]byte, error) {
 		return nil, err
 	}
 
-	if len(b) < 4 {
+	if len(b) < 10 {
 		return nil, errResourceLen
 	}
 
@@ -437,7 +450,7 @@ func (r *Resource) Unpack(b []byte, dec Decompressor) ([]byte, error) {
 // Record is a DNS record.
 type Record interface {
 	Type() Type
-	Length(Compressor) int
+	Length(Compressor) (int, error)
 	Pack([]byte, Compressor) ([]byte, error)
 	Unpack([]byte, Decompressor) ([]byte, error)
 }
@@ -451,7 +464,7 @@ type A struct {
 func (A) Type() Type { return TypeA }
 
 // Length returns the encoded RDATA size.
-func (A) Length(Compressor) int { return 4 }
+func (A) Length(Compressor) (int, error) { return 4, nil }
 
 // Pack encodes a as RDATA.
 func (a A) Pack(b []byte, _ Compressor) ([]byte, error) {
@@ -483,7 +496,7 @@ type AAAA struct {
 func (AAAA) Type() Type { return TypeAAAA }
 
 // Length returns the encoded RDATA size.
-func (AAAA) Length(Compressor) int { return 16 }
+func (AAAA) Length(Compressor) (int, error) { return 16, nil }
 
 // Pack encodes a as RDATA.
 func (a AAAA) Pack(b []byte, _ Compressor) ([]byte, error) {
@@ -515,7 +528,7 @@ type CNAME struct {
 func (CNAME) Type() Type { return TypeCNAME }
 
 // Length returns the encoded RDATA size.
-func (c CNAME) Length(com Compressor) int {
+func (c CNAME) Length(com Compressor) (int, error) {
 	return com.Length(c.CNAME)
 }
 
@@ -546,8 +559,12 @@ type SOA struct {
 func (SOA) Type() Type { return TypeSOA }
 
 // Length returns the encoded RDATA size.
-func (s SOA) Length(com Compressor) int {
-	return com.Length(s.NS, s.MBox) + 20
+func (s SOA) Length(com Compressor) (int, error) {
+	n, err := com.Length(s.NS, s.MBox)
+	if err != nil {
+		return 0, err
+	}
+	return n + 20, nil
 }
 
 // Pack encodes s as RDATA.
@@ -634,7 +651,7 @@ type PTR struct {
 func (PTR) Type() Type { return TypePTR }
 
 // Length returns the encoded RDATA size.
-func (p PTR) Length(com Compressor) int {
+func (p PTR) Length(com Compressor) (int, error) {
 	return com.Length(p.PTR)
 }
 
@@ -660,8 +677,12 @@ type MX struct {
 func (MX) Type() Type { return TypeMX }
 
 // Length returns the encoded RDATA size.
-func (m MX) Length(com Compressor) int {
-	return 2 + com.Length(m.MX)
+func (m MX) Length(com Compressor) (int, error) {
+	n, err := com.Length(m.MX)
+	if err != nil {
+		return 0, err
+	}
+	return n + 2, nil
 }
 
 // Pack encodes m as RDATA.
@@ -699,7 +720,7 @@ type NS struct {
 func (NS) Type() Type { return TypeNS }
 
 // Length returns the encoded RDATA size.
-func (n NS) Length(com Compressor) int {
+func (n NS) Length(com Compressor) (int, error) {
 	return com.Length(n.NS)
 }
 
@@ -724,12 +745,12 @@ type TXT struct {
 func (TXT) Type() Type { return TypeTXT }
 
 // Length returns the encoded RDATA size.
-func (t TXT) Length(_ Compressor) int {
+func (t TXT) Length(_ Compressor) (int, error) {
 	var n int
 	for _, s := range t.TXT {
 		n += 1 + len(s)
 	}
-	return n
+	return n, nil
 }
 
 // Pack encodes t as RDATA.
@@ -773,8 +794,12 @@ type SRV struct {
 func (SRV) Type() Type { return TypeSRV }
 
 // Length returns the encoded RDATA size.
-func (s SRV) Length(_ Compressor) int {
-	return 6 + compressor{}.Length(s.Target)
+func (s SRV) Length(_ Compressor) (int, error) {
+	n, err := compressor{}.Length(s.Target)
+	if err != nil {
+		return 0, err
+	}
+	return n + 6, nil
 }
 
 // Pack encodes s as RDATA.
@@ -816,4 +841,135 @@ func (s *SRV) Unpack(b []byte, _ Decompressor) ([]byte, error) {
 	var err error
 	s.Target, b, err = decompressor(nil).Unpack(b[6:])
 	return b, err
+}
+
+// DNAME is a DNS DNAME record.
+type DNAME struct {
+	DNAME string
+}
+
+// Type returns the RR type identifier.
+func (DNAME) Type() Type { return TypeDNAME }
+
+// Length returns the encoded RDATA size.
+func (d DNAME) Length(com Compressor) (int, error) {
+	return com.Length(d.DNAME)
+}
+
+// Pack encodes c as RDATA.
+func (d DNAME) Pack(b []byte, com Compressor) ([]byte, error) {
+	return com.Pack(b, d.DNAME)
+}
+
+// Unpack decodes c from RDATA in b.
+func (d *DNAME) Unpack(b []byte, dec Decompressor) ([]byte, error) {
+	var err error
+	d.DNAME, b, err = dec.Unpack(b)
+	return b, err
+}
+
+// OPT is a DNS OPT record.
+type OPT struct {
+	Options []edns.Option
+}
+
+// Type returns the RR type identifier.
+func (o OPT) Type() Type { return TypeOPT }
+
+// Length returns the encoded RDATA size.
+func (o OPT) Length(_ Compressor) (int, error) {
+	var n int
+	for _, opt := range o.Options {
+		n += opt.Length()
+	}
+	return n, nil
+}
+
+// Pack encodes o as RDATA.
+func (o OPT) Pack(b []byte, _ Compressor) ([]byte, error) {
+	var err error
+	for _, opt := range o.Options {
+		if b, err = opt.Pack(b); err != nil {
+			return nil, err
+		}
+	}
+	return b, nil
+}
+
+// Unpack decodes o from RDATA in b.
+func (o *OPT) Unpack(b []byte, _ Decompressor) ([]byte, error) {
+	o.Options = nil
+
+	var err error
+	for len(b) > 0 {
+		var opt edns.Option
+		if b, err = opt.Unpack(b); err != nil {
+			return nil, err
+		}
+		o.Options = append(o.Options, opt)
+	}
+	return b, nil
+}
+
+// type CAA is a DNS CAA record.
+type CAA struct {
+	IssuerCritical bool
+
+	Tag   string
+	Value string
+}
+
+// Type returns the RR type identifier.
+func (CAA) Type() Type { return TypeCAA }
+
+// Length returns the encoded RDATA size.
+func (c CAA) Length(_ Compressor) (int, error) {
+	return 2 + len(c.Tag) + len(c.Value), nil
+}
+
+// Pack encodes c as RDATA.
+func (c CAA) Pack(b []byte, _ Compressor) ([]byte, error) {
+	buf := make([]byte, 2, 2+len(c.Tag)+len(c.Value))
+
+	if c.IssuerCritical {
+		buf[0] = 1
+	}
+
+	tagLength := len(c.Tag)
+	if tagLength == 0 {
+		return nil, errZeroSegLen
+	}
+	if tagLength > 255 {
+		return nil, errSegTooLong
+	}
+	buf[1] = byte(tagLength)
+
+	buf = append(buf, []byte(c.Tag)...)
+	buf = append(buf, []byte(c.Value)...)
+
+	return append(b, buf...), nil
+}
+
+// Unpack decodes c from RDATA in b.
+func (c *CAA) Unpack(b []byte, _ Decompressor) ([]byte, error) {
+	if len(b) < 2 {
+		return nil, errResourceLen
+	}
+
+	if b[0]&0x01 > 0 {
+		c.IssuerCritical = true
+	}
+
+	tagLength := int(b[1])
+	if tagLength == 0 {
+		return nil, errZeroSegLen
+	}
+	if 2+tagLength > len(b) {
+		return nil, errResourceLen
+	}
+
+	c.Tag = string(b[2 : 2+tagLength])
+	c.Value = string(b[2+tagLength:])
+
+	return nil, nil
 }
